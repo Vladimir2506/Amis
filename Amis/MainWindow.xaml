@@ -1,0 +1,18 @@
+﻿<Window x:Name="AmisLogin" x:Class="Amis.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Amis"
+        mc:Ignorable="d"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.FontWeight="Medium"
+        TextElement.FontSize="14"
+        FontFamily="Noto Sans CJK SC Regular"
+        Title="登陆Amis" Height="500" Width="300" Loaded="AmisLogin_Loaded" Closing="AmisLogin_Closing" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    
+    <Grid x:Name="GridBackground">
+        <TextBox x:Name="tbUsername" Height="28.8" Margin="80.6,0,53.4,120.8" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Bottom"/>
+    </Grid>
+</Window>
