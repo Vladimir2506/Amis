@@ -61,7 +61,7 @@ namespace Amis
 
             try
             {
-                byte[] buffer = new byte[2 * 1024 * 1024];
+                byte[] buffer = new byte[1024];
                 int recvLength = socketToServer.Receive(buffer);
                 recv = Encoding.UTF8.GetString(buffer, 0, recvLength);
             }
