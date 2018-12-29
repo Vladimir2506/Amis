@@ -17,19 +17,17 @@
         ResizeMode="NoResize" WindowStyle="None" >
 
     <Grid x:Name="GridBackground" Opacity="0.9">
-        <TextBox x:Name="tbUsername" Height="28.8" Margin="80.8,0,79.2,159.2" TextWrapping="Wrap" VerticalAlignment="Bottom" HorizontalAlignment="Center" Width="160"/>
+        <TextBox x:Name="tbUsername" Height="38.933" Margin="80.8,0,79.2,159.733" TextWrapping="Wrap" VerticalAlignment="Bottom" Width="160" materialDesign:HintAssist.Hint="用户名" Style="{StaticResource MaterialDesignFloatingHintTextBox}" VerticalContentAlignment="Top" HorizontalContentAlignment="Left" TabIndex="0"/>
         <Rectangle x:Name="rectTitlebar" Height="240" VerticalAlignment="Top" MouseMove="RectTitlebar_MouseMove" >
             <Rectangle.Fill>
                 <ImageBrush ImageSource="pack://siteoforigin:,,,/Resources/LoginBck1.png"/>
             </Rectangle.Fill>
         </Rectangle>
-        <Label x:Name="lblTitle" Content="Amis" Margin="104.6,61.8,103.798,0" VerticalAlignment="Top" FontWeight="Normal" Foreground="White" FontSize="48" FontFamily="Palace Script MT" HorizontalAlignment="Center"/>
-        <Label x:Name="lblSubtitle" Content="文 体 两 开 花" Margin="101.7,143.4,100.3,0" VerticalAlignment="Top" FontSize="18" Foreground="White" FontFamily="Noto Sans CJK SC Medium" FontWeight="Normal" d:LayoutOverrides="Width" TextOptions.TextFormattingMode="Display"/>
-        <TextBox x:Name="tbPassword" Height="28.8" Margin="80.8,0,79.2,98.4" TextWrapping="Wrap" VerticalAlignment="Bottom" HorizontalAlignment="Center" Width="160" />
-        <Label x:Name="lblUsername" Content="用户名" HorizontalAlignment="Left" Margin="80.8,0,0,188" VerticalAlignment="Bottom" Padding="0,5,5,0" FontSize="12" TextOptions.TextFormattingMode="Display"/>
-        <Label x:Name="lblPassword" Content="密码" HorizontalAlignment="Left" Margin="80.8,0,0,127.2" VerticalAlignment="Bottom" Padding="0,5,5,0" FontSize="12" TextOptions.TextFormattingMode="Display"/>
-        <Button x:Name="btnLogin" Content="登陆" HorizontalAlignment="Left" Height="30" Margin="121.599,0,0,28.533" VerticalAlignment="Bottom" Width="80" Style="{DynamicResource MaterialDesignRaisedDarkButton}" TextOptions.TextFormattingMode="Display" Click="BtnLogin_Click" RenderTransformOrigin="0.535,1.269"/>
-        <Button x:Name="btnExit" Content="退出" HorizontalAlignment="Left" Height="20.133" Margin="260,0,0,15.4" VerticalAlignment="Bottom" Width="40" Style="{DynamicResource MaterialDesignToolButton}" FontSize="11" RenderTransformOrigin="0.172,0.956" TextOptions.TextFormattingMode="Display" Click="BtnExit_Click" Padding="2"/>
+        <Label x:Name="lblTitle" Content="Amis" Margin="104.6,61.8,103.798,0" VerticalAlignment="Top" FontWeight="Normal" Foreground="White" FontSize="48" FontFamily="Kunstler Script" HorizontalAlignment="Center"/>
+        <Label x:Name="lblSubtitle" Content="文 体 两 开 花" Margin="101.7,143.4,100.3,0" VerticalAlignment="Top" FontSize="18" Foreground="White" FontFamily="Noto Sans CJK SC Regular" FontWeight="Normal" d:LayoutOverrides="Width"/>
+        <Button x:Name="btnLogin" Content="登录" Height="30" Margin="110.8,0,109.2,43.64" VerticalAlignment="Bottom" Style="{DynamicResource MaterialDesignRaisedDarkButton}" Click="BtnLogin_Click" RenderTransformOrigin="0.535,1.269" TabIndex="2"/>
+        <Button x:Name="btnExit" Content="退出" HorizontalAlignment="Left" Height="20.133" Margin="260,0,0,15.4" VerticalAlignment="Bottom" Width="40" Style="{DynamicResource MaterialDesignFlatButton}" FontSize="11" RenderTransformOrigin="0.172,0.956" Click="BtnExit_Click" Padding="2" TabIndex="3"/>
         <Label x:Name="lblMessage" Content="" Margin="80.8,0,79.2,73.64" VerticalAlignment="Bottom" FontSize="12" Padding="1"/>
+        <PasswordBox x:Name="tbPassword" Height="37.76" Margin="80.8,0,79.2,98.4" VerticalAlignment="Bottom" materialDesign:HintAssist.Hint="密码" Style="{StaticResource MaterialDesignFloatingHintPasswordBox}" TabIndex="1"/>
     </Grid>
 </Window>

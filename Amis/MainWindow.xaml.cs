@@ -40,7 +40,7 @@ namespace Amis
 
         private void AmisLogin_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            result = connectionToServer.QueryOnce("logout"+userID);
+            //result = connectionToServer.QueryOnce("logout"+userID);
             connectionToServer.Release();
         }
 
@@ -61,8 +61,8 @@ namespace Amis
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
             userID = tbUsername.Text;
-            passwd = tbPassword.Text;
-            result = connectionToServer.QueryOnce(userID + "_" + passwd);
+            passwd = tbPassword.Password;
+            /*result = connectionToServer.QueryOnce(userID + "_" + passwd);
             if (result == "lol")
             {
                 lblMessage.Content = "登陆成功！";
@@ -72,7 +72,8 @@ namespace Amis
             {
                 lblMessage.Content = "登陆失败！";
                 lblMessage.Foreground = new SolidColorBrush(Color.FromArgb(222, 0xe5, 0x39, 0x35));
-            }
+            }*/
+            
         }
 
         private void RectTitlebar_MouseMove(object sender, MouseEventArgs e)

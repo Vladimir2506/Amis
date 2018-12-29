@@ -8,17 +8,17 @@ using System.Net;
 using System.Net.Sockets;
 using System.Windows;
 
-
 namespace Amis
 {
     class CSModule
     {
-        private IPEndPoint serverEndPoint = null;
+        private const int bufferSize = 1024;
+
         private Socket socketToServer = null;
 
         public CSModule(string ipAddress, int portNO)
         {
-            serverEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), portNO);
+            IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), portNO);
             socketToServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             try
@@ -61,7 +61,7 @@ namespace Amis
 
             try
             {
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[bufferSize];
                 int recvLength = socketToServer.Receive(buffer);
                 recv = Encoding.UTF8.GetString(buffer, 0, recvLength);
             }

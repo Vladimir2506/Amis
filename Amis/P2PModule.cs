@@ -1,40 +1,120 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
-using System.Net.NetworkInformation;
 
 namespace Amis
 {
     class P2PModule
     {
-        private IPAddress selfIPv4Addr = null;
-        private IPEndPoint serverEndPoint = null;
-        private Socket socketToServer = null;
-        public List<IPAddress> clients;
+        private const int bufferSize = 65536;
+
+        private Socket socketListen = null;
+        private Socket socketPeer = null;
+        private Thread threadRecv = null;
+        private InterThreads inters = null;
+        private byte[] recvBuffer = null;
+        private byte[] sendBuffer = null;
 
         public P2PModule()
         {
-            selfIPv4Addr = GetIPv4();
-            if (selfIPv4Addr == null)
-            {
-                throw new ArgumentNullException("Invalid network condition.");
-            }
-
+            inters = InterThreads.GetInstance();
+            socketListen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socketPeer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            threadRecv = new Thread(AcceptRecvAsync1);
         }
 
-        private IPAddress GetIPv4()
+        public void SendDataAsync(byte[] data, string targetIP, int targetPort)
+        {
+            socketPeer.BeginConnect(new IPEndPoint(IPAddress.Parse(targetIP), targetPort), SendDataAsync2, socketPeer);
+        }
+
+        public void SendDataAsync2(IAsyncResult ar)
+        {
+            Socket selfSocket = (Socket)ar.AsyncState;
+            selfSocket.EndConnect(ar);
+            selfSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None, SendDataAsync3, selfSocket);
+        }
+
+        private void SendDataAsync3(IAsyncResult ar)
+        {
+            Socket selfSocket = (Socket)ar.AsyncState;
+            selfSocket.EndSend(ar);
+        }
+
+        public void BeginListen(int portNO ,int backlog)
+        {
+            socketListen.Bind(new IPEndPoint(GetIPV4(), portNO));
+            socketListen.Listen(backlog);
+            inters.listening = true;
+            threadRecv.Start();
+        }
+
+        public void EndListen()
+        {
+            lock (inters)
+            {
+                inters.listening = false;
+            }
+            threadRecv.Join();
+            socketListen.Close();
+        }
+
+        private void AcceptRecvAsync1()
+        {
+            bool ongoing = true;
+            while (ongoing)
+            {
+                socketListen.BeginAccept(AcceptRecvAsync2, socketListen);
+                lock (inters)
+                {
+                    ongoing = inters.listening;
+                }
+            }
+        }
+
+        public void AcceptRecvAsync2(IAsyncResult ar)
+        {
+            Socket selfSocket = (Socket)ar.AsyncState;
+            Socket recvSocket = selfSocket.EndAccept(ar);
+            recvBuffer = new byte[bufferSize];
+            recvSocket.BeginReceive(recvBuffer, 0, bufferSize, SocketFlags.None, AcceptRecvAsync3, recvSocket);
+        }
+
+        public void AcceptRecvAsync3(IAsyncResult ar)
+        {
+            Socket recvSocket = (Socket)ar.AsyncState;
+            int len = recvSocket.EndReceive(ar);
+            lock(inters)
+            {
+                byte[] msg = new byte[len];
+                Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
+                inters.messages.Append(msg);
+            }
+            recvSocket.BeginDisconnect(true, AcceptRecvAsync4, recvSocket);
+        }
+
+        public void AcceptRecvAsync4(IAsyncResult ar)
+        {
+            Socket recvSocket = (Socket)ar.AsyncState;
+            recvSocket.EndDisconnect(ar);
+            recvSocket.Close();
+        }
+
+        private IPAddress GetIPV4()
         {
             try
             {
-                IPHostEntry IpEntry = Dns.GetHostEntry(Dns.GetHostName());
+                string HostName = Dns.GetHostName(); 
+                IPHostEntry IpEntry = Dns.GetHostEntry(HostName);
                 for (int i = 0; i < IpEntry.AddressList.Length; i++)
                 {
+                    
                     if (IpEntry.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
                     {
                         return IpEntry.AddressList[i];
@@ -42,27 +122,33 @@ namespace Amis
                 }
                 return null;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                MessageBox.Show("获取本机IP出错:" + ex.Message);
                 return null;
             }
         }
+    }
 
-        public static List<int> GetBusyPorts()
+    class InterThreads
+    {
+        private static InterThreads instance = null;
+        public bool listening = false;
+        public bool processing = false;
+        public Queue<byte[]> messages = null;
+
+        private InterThreads()
         {
-            IPGlobalProperties props = IPGlobalProperties.GetIPGlobalProperties();
+            messages = new Queue<byte[]>();
+        }
 
-            IPEndPoint[] tcpIPs = props.GetActiveTcpListeners();
-            IPEndPoint[] udpIPs = props.GetActiveUdpListeners();
-
-            TcpConnectionInformation[] tcpConnectionInformation = props.GetActiveTcpConnections();
-
-            List<int> allPorts = new List<int>();
-            foreach (IPEndPoint ep in tcpIPs) allPorts.Add(ep.Port);
-            foreach (IPEndPoint ep in udpIPs) allPorts.Add(ep.Port);
-            foreach (TcpConnectionInformation conn in tcpConnectionInformation) allPorts.Add(conn.LocalEndPoint.Port);
-
-            return allPorts;
+        public static InterThreads GetInstance()
+        {
+            if(instance == null)
+            {
+                instance = new InterThreads();
+            }
+            return instance;
         }
     }
 }
