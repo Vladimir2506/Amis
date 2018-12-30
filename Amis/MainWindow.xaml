@@ -10,7 +10,7 @@
     mc:Ignorable="d"
     TextElement.Foreground="{DynamicResource MaterialDesignBody}"
     Background="White"
-    TextElement.FontWeight="Medium"
+    TextElement.FontWeight="Regular"
     TextElement.FontSize="14"
     FontFamily="Noto Sans CJK SC Regular"
     Title="登陆Amis" Height="480" Width="320" 
@@ -22,20 +22,24 @@
     <materialDesign:DialogHost 
         x:Name="dlgFail"
         HorizontalAlignment="Center"
+        Background="White"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        FontFamily="Noto Sans CJK SC Regular"
         >
         <materialDesign:DialogHost.DialogContent>
-            <StackPanel x:Name="spFail" Margin="5">
-                <TextBlock x:Name="dlgFailInfo" 
-                       Text="登录失败" 
-                       FontSize="15"
-                       HorizontalAlignment="Center"
-                       TextOptions.TextFormattingMode="Display"
-                       Margin="15,20,15,15"/>
-                <Button
-                    x:Name="dlgbtnOK"
+            <StackPanel x:Name="spFail" Margin="10,5">
+                <TextBlock x:Name="dlgFailInfo" FontFamily="Noto Sans CJK SC Regular"
+                    Text="登录失败"
+                    TextElement.FontSize="15" TextElement.FontWeight="Medium"       
+                    HorizontalAlignment="Center"
+                    TextOptions.TextFormattingMode="Display"
+                    Margin="30,20,30,15"/>
+                <Button x:Name="dlgbtnOK"
+                    FontFamily="Noto Sans CJK SC Regular"
                     Style="{StaticResource MaterialDesignFlatButton}"
                     IsDefault="True"
-                    Margin="40,2,8,2"
+                    Margin="46,2,4,2"
                     Command="materialDesign:DialogHost.CloseDialogCommand"
                     Content="确认"
                     FontSize="13"
@@ -43,17 +47,17 @@
             </StackPanel>
         </materialDesign:DialogHost.DialogContent>
         <Grid x:Name="GridBackground">
-            <TextBox x:Name="tbUsername" Height="38.933" Margin="80.8,0,79.2,180.533" TextWrapping="Wrap" VerticalAlignment="Bottom" Width="160" materialDesign:HintAssist.Hint="用户名" Style="{StaticResource MaterialDesignFloatingHintTextBox}" VerticalContentAlignment="Top" HorizontalContentAlignment="Left" TabIndex="0" TextOptions.TextFormattingMode="Display"/>
+            <TextBox x:Name="tbUsername" Height="38.933" Margin="80.8,0,79.2,159.733" TextWrapping="Wrap" VerticalAlignment="Bottom" Width="160" materialDesign:HintAssist.Hint="用户名" Style="{StaticResource MaterialDesignFloatingHintTextBox}" VerticalContentAlignment="Top" HorizontalContentAlignment="Left" TabIndex="0" TextOptions.TextFormattingMode="Display"/>
             <Rectangle x:Name="rectTitlebar" Height="240" VerticalAlignment="Top" MouseMove="RectTitlebar_MouseMove" >
                 <Rectangle.Fill>
                     <ImageBrush ImageSource="pack://siteoforigin:,,,/Resources/LoginBck1.png"/>
                 </Rectangle.Fill>
             </Rectangle>
-            <Label x:Name="lblTitle" Content="Amis" Margin="104.6,61.8,103.798,0" VerticalAlignment="Top" FontWeight="Normal" Foreground="White" FontSize="48" FontFamily="Kunstler Script" HorizontalAlignment="Center"/>
-            <Label x:Name="lblSubtitle" Content="文 体 两 开 花" Margin="101.7,143.4,100.3,0" VerticalAlignment="Top" FontSize="18" Foreground="White" FontFamily="Noto Sans CJK SC Regular" FontWeight="Normal" d:LayoutOverrides="Width" TextOptions.TextFormattingMode="Display"/>
-            <Button x:Name="btnLogin" Content="登录" Height="30" Margin="110.339,0,109.661,29.974" VerticalAlignment="Bottom" Style="{DynamicResource MaterialDesignRaisedDarkButton}" Click="BtnLogin_Click" RenderTransformOrigin="0.535,1.269" TabIndex="2" TextOptions.TextFormattingMode="Display" />
+            <Label x:Name="lblTitle" Content="Amis" Margin="104.6,61.8,103.798,0" VerticalAlignment="Top" FontWeight="Normal" Foreground="White" FontSize="63" FontFamily="Palace Script MT" HorizontalAlignment="Center"/>
+            <Label x:Name="lblSubtitle" Content="精 彩 互 联 网" Margin="101.7,143.4,100.3,0" VerticalAlignment="Top" FontSize="18" Foreground="White" FontFamily="Noto Sans CJK SC Regular" FontWeight="Normal" d:LayoutOverrides="Width" TextOptions.TextFormattingMode="Display"/>
+            <Button x:Name="btnLogin" Content="登录" Height="30" Margin="94.439,0,95.1,48.133" VerticalAlignment="Bottom" Style="{DynamicResource MaterialDesignRaisedDarkButton}" Click="BtnLogin_Click" RenderTransformOrigin="0.535,1.269" TabIndex="2" TextOptions.TextFormattingMode="Display" />
             <Button x:Name="btnExit" Content="退出" HorizontalAlignment="Left" Height="20.133" Margin="260,0,0,15.4" VerticalAlignment="Bottom" Width="40" Style="{DynamicResource MaterialDesignFlatButton}" FontSize="11" RenderTransformOrigin="0.172,0.956" Click="BtnExit_Click" Padding="2" TabIndex="3" TextOptions.TextFormattingMode="Display"/>
-            <PasswordBox x:Name="tbPassword" Height="37.76" Margin="80.8,0,79.2,121.2" VerticalAlignment="Bottom" materialDesign:HintAssist.Hint="密码" Style="{StaticResource MaterialDesignFloatingHintPasswordBox}" TabIndex="1" TextOptions.TextFormattingMode="Display"/>
+            <PasswordBox x:Name="tbPassword" Height="37.76" Margin="80.8,0,79.2,107.373" VerticalAlignment="Bottom" materialDesign:HintAssist.Hint="密码" Style="{StaticResource MaterialDesignFloatingHintPasswordBox}" TabIndex="1" TextOptions.TextFormattingMode="Display" KeyDown="TbPassword_KeyDown"/>
         </Grid>
     </materialDesign:DialogHost>
 </Window>

@@ -1,0 +1,37 @@
+﻿<Window x:Name="AmisChat" x:Class="Amis.ChatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Amis"
+        mc:Ignorable="d"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="White"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        FontFamily="Noto Sans CJK SC Regular"
+        Title="ChatWindow" Height="550" Width="998" Closing="AmisChat_Closing" WindowStyle="None" Loaded="AmisChat_Loaded" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+    <Grid x:Name="GridBackground">
+        <materialDesign:ColorZone x:Name="czTop" Height="52.32" d:LayoutOverrides="Width" Mode="PrimaryDark" Padding="16" MouseMove="CzTop_MouseMove" >
+            <DockPanel x:Name="dpTopBar" LastChildFill="False" Margin="-15.6,-16.2,-15.8,-15.68" d:LayoutOverrides="VerticalAlignment">
+                <materialDesign:PopupBox x:Name="popMenu"
+                    DockPanel.Dock="Right"
+                    PlacementMode="BottomAndAlignRightEdges" Width="55.333">
+                    <ListBox x:Name="lbMenu" >
+                        <ListBoxItem x:Name="lbiSelf" />
+                        <ListBoxItem x:Name="lbiQuit" Content="退出登录" Selected="LbiQuit_Selected"/>
+                    </ListBox>
+                </materialDesign:PopupBox>
+                <Label x:Name="lblTitle" Content="Amis" FontWeight="Normal" 
+                       Foreground="White" FontSize="25" FontFamily="Segoe Script" 
+                       HorizontalAlignment="Center" Width="89.02" 
+                       HorizontalContentAlignment="Center" 
+                       ScrollViewer.VerticalScrollBarVisibility="Disabled" 
+                       VerticalContentAlignment="Center" 
+                       VerticalAlignment="Center" Height="52.2"/>
+            </DockPanel>
+        </materialDesign:ColorZone>
+
+    </Grid>
+</Window>

@@ -61,17 +61,7 @@ namespace Amis
 
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
-            userID = tbUsername.Text;
-            passwd = tbPassword.Password;
-            result = connectionToServer.QueryOnce(userID + "_" + passwd);
-            if (result == "lol")
-            {
-                //...
-            }
-            else
-            {
-                dlgFail.IsOpen = true;
-            }    
+            DoLogin();
         }
 
         private void RectTitlebar_MouseMove(object sender, MouseEventArgs e)
@@ -79,6 +69,32 @@ namespace Amis
             if(e.LeftButton == MouseButtonState.Pressed)
             {
                 DragMove();
+            }
+        }
+
+        private void TbPassword_KeyDown(object sender, KeyEventArgs e)
+        {
+            if(e.Key == Key.Enter)
+            {
+                DoLogin();
+            }
+        }
+
+        private void DoLogin()
+        {
+            userID = tbUsername.Text;
+            passwd = tbPassword.Password;
+            result = connectionToServer.QueryOnce(userID + "_" + passwd);
+            if (result == "lol")
+            {
+                IntraThreads.GetInstance().monId = userID;
+                ChatWindow chat = new ChatWindow();
+                chat.Show();
+                Hide();
+            }
+            else
+            {
+                dlgFail.IsOpen = true;
             }
         }
     }
