@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace Amis
 {
-    class CSModule
+    public class CSModule
     {
         private const int bufferSize = 1024;
 
@@ -20,14 +20,13 @@ namespace Amis
         {
             IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), portNO);
             socketToServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
             try
             {
                 socketToServer.Connect(serverEndPoint);
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.ToString(), "发起连接错误");
+                MessageBox.Show(e.Message, "发起连接错误");
             }
         }
 
@@ -40,7 +39,7 @@ namespace Amis
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.ToString(), "断开连接错误");
+                MessageBox.Show(e.Message, "断开连接错误");
             }
         }
 
@@ -55,7 +54,7 @@ namespace Amis
             }
             catch (Exception e)
             {
-                MessageBox.Show(e.ToString(), "发送错误");
+                MessageBox.Show(e.Message, "发送错误");
                 return recv;
             }
 
@@ -67,7 +66,7 @@ namespace Amis
             }
             catch(Exception e)
             {
-                MessageBox.Show(e.ToString(), "接收错误");
+                MessageBox.Show(e.Message, "接收错误");
                 return recv;
             }
 

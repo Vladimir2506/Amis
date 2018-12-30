@@ -10,9 +10,10 @@ using System.Windows;
 
 namespace Amis
 {
-    class P2PModule
+    public class P2PModule
     {
-        private const int bufferSize = 65536;
+        private const int bufferSize = 4096;
+        private const int fileBufferSize = 65536;
 
         private Socket socketListen = null;
         private Socket socketPeer = null;
@@ -31,26 +32,61 @@ namespace Amis
 
         public void SendDataAsync(byte[] data, string targetIP, int targetPort)
         {
-            socketPeer.BeginConnect(new IPEndPoint(IPAddress.Parse(targetIP), targetPort), SendDataAsync2, socketPeer);
+            try
+            {
+                socketPeer.BeginConnect(new IPEndPoint(IPAddress.Parse(targetIP), targetPort), SendDataAsync2, socketPeer);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "发起连接错误");
+            }
         }
 
         public void SendDataAsync2(IAsyncResult ar)
         {
             Socket selfSocket = (Socket)ar.AsyncState;
-            selfSocket.EndConnect(ar);
-            selfSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None, SendDataAsync3, selfSocket);
+            try
+            {
+                selfSocket.EndConnect(ar);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "连接错误");
+            }
+            try
+            {
+                selfSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None, SendDataAsync3, selfSocket);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "启动发送错误");
+            }
         }
 
         private void SendDataAsync3(IAsyncResult ar)
         {
             Socket selfSocket = (Socket)ar.AsyncState;
-            selfSocket.EndSend(ar);
+            try
+            {
+                selfSocket.EndSend(ar);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "发送错误");
+            }
         }
 
-        public void BeginListen(int portNO ,int backlog)
+        public void BeginListen(int portNO, int backlog)
         {
             socketListen.Bind(new IPEndPoint(GetIPV4(), portNO));
-            socketListen.Listen(backlog);
+            try
+            {
+                socketListen.Listen(backlog);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "监听错误");
+            }
             inters.listening = true;
             threadRecv.Start();
         }
@@ -70,7 +106,14 @@ namespace Amis
             bool ongoing = true;
             while (ongoing)
             {
-                socketListen.BeginAccept(AcceptRecvAsync2, socketListen);
+                try
+                {
+                    socketListen.BeginAccept(AcceptRecvAsync2, socketListen);
+                }
+                catch(Exception e)
+                {
+                    MessageBox.Show(e.Message, "启动接受错误");
+                }
                 lock (inters)
                 {
                     ongoing = inters.listening;
@@ -81,20 +124,43 @@ namespace Amis
         public void AcceptRecvAsync2(IAsyncResult ar)
         {
             Socket selfSocket = (Socket)ar.AsyncState;
-            Socket recvSocket = selfSocket.EndAccept(ar);
-            recvBuffer = new byte[bufferSize];
-            recvSocket.BeginReceive(recvBuffer, 0, bufferSize, SocketFlags.None, AcceptRecvAsync3, recvSocket);
+            try
+            {
+                Socket recvSocket = selfSocket.EndAccept(ar);
+                recvBuffer = new byte[bufferSize];
+                try
+                {
+                    recvSocket.BeginReceive(recvBuffer, 0, bufferSize, SocketFlags.None, AcceptRecvAsync3, recvSocket);
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(e.Message, "发起接收错误");
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "接受错误");
+            }
+            
         }
 
         public void AcceptRecvAsync3(IAsyncResult ar)
         {
             Socket recvSocket = (Socket)ar.AsyncState;
-            int len = recvSocket.EndReceive(ar);
-            lock(inters)
+            try
             {
-                byte[] msg = new byte[len];
-                Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
-                inters.messages.Append(msg);
+                int len = recvSocket.EndReceive(ar);
+                lock (inters)
+                lock (recvBuffer)
+                {
+                    byte[] msg = new byte[len];
+                    Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
+                    inters.messages.Append(msg);
+                }
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.Message, "接收错误");
             }
             recvSocket.BeginDisconnect(true, AcceptRecvAsync4, recvSocket);
         }
@@ -110,11 +176,11 @@ namespace Amis
         {
             try
             {
-                string HostName = Dns.GetHostName(); 
+                string HostName = Dns.GetHostName();
                 IPHostEntry IpEntry = Dns.GetHostEntry(HostName);
                 for (int i = 0; i < IpEntry.AddressList.Length; i++)
                 {
-                    
+
                     if (IpEntry.AddressList[i].AddressFamily == AddressFamily.InterNetwork)
                     {
                         return IpEntry.AddressList[i];
@@ -127,28 +193,6 @@ namespace Amis
                 MessageBox.Show("获取本机IP出错:" + ex.Message);
                 return null;
             }
-        }
-    }
-
-    class InterThreads
-    {
-        private static InterThreads instance = null;
-        public bool listening = false;
-        public bool processing = false;
-        public Queue<byte[]> messages = null;
-
-        private InterThreads()
-        {
-            messages = new Queue<byte[]>();
-        }
-
-        public static InterThreads GetInstance()
-        {
-            if(instance == null)
-            {
-                instance = new InterThreads();
-            }
-            return instance;
         }
     }
 }

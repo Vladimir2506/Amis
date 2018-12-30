@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MaterialDesignThemes.Wpf;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -62,18 +63,15 @@ namespace Amis
         {
             userID = tbUsername.Text;
             passwd = tbPassword.Password;
-            /*result = connectionToServer.QueryOnce(userID + "_" + passwd);
+            result = connectionToServer.QueryOnce(userID + "_" + passwd);
             if (result == "lol")
             {
-                lblMessage.Content = "登陆成功！";
-                lblMessage.Foreground = new SolidColorBrush(Color.FromArgb(222, 0, 0, 0));
+                //...
             }
             else
             {
-                lblMessage.Content = "登陆失败！";
-                lblMessage.Foreground = new SolidColorBrush(Color.FromArgb(222, 0xe5, 0x39, 0x35));
-            }*/
-            
+                dlgFail.IsOpen = true;
+            }    
         }
 
         private void RectTitlebar_MouseMove(object sender, MouseEventArgs e)
