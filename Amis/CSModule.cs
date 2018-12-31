@@ -12,13 +12,32 @@ namespace Amis
 {
     public class CSModule
     {
-        private const int bufferSize = 1024;
-
+        private IPEndPoint serverEndPoint = null;
         private Socket socketToServer = null;
 
-        public CSModule(string ipAddress, int portNO)
+        public const string ipServer = "166.111.140.14";
+        public const int portServer = 8000;
+        private const int bufferSize = 64;
+
+        private static CSModule instance = null;
+
+        public static CSModule GetInstance()
         {
-            IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), portNO);
+            if (instance == null)
+            {
+                instance = new CSModule();
+            }
+            return instance;
+        }
+
+        private CSModule()
+        {
+            serverEndPoint = new IPEndPoint(IPAddress.Parse(ipServer), portServer);
+        }
+        
+        public string QueryOnce(string msg)
+        {
+            string recv = "NRP";
             socketToServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             try
             {
@@ -28,25 +47,6 @@ namespace Amis
             {
                 MessageBox.Show(e.Message, "发起连接错误");
             }
-        }
-
-        public void Release()
-        {
-            try
-            {
-                socketToServer.Disconnect(true);
-                socketToServer.Close();
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "断开连接错误");
-            }
-        }
-
-        public string QueryOnce(string msg)
-        {
-            string recv = "NRP";
-
             try
             {
                 byte[] toSend = Encoding.UTF8.GetBytes(msg);
@@ -57,7 +57,6 @@ namespace Amis
                 MessageBox.Show(e.Message, "发送错误");
                 return recv;
             }
-
             try
             {
                 byte[] buffer = new byte[bufferSize];
@@ -69,7 +68,15 @@ namespace Amis
                 MessageBox.Show(e.Message, "接收错误");
                 return recv;
             }
-
+            try
+            {
+                socketToServer.Disconnect(true);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "断开连接错误");
+            }
+            socketToServer.Close();
             return recv;
         }
     }

@@ -36,6 +36,8 @@ namespace Amis
     {
         private static IntraThreads instance = null;
 
+        public const int portNO = 15120;
+        public const int backlog = 12;
         public string monId = null;
         public string monAlias = null;
         public List<MonAmis> amis = null;
@@ -86,11 +88,17 @@ namespace Amis
         public string alias = null;
 
         public bool online = false;
+        public DateTime lastActivated;
 
         public MonAmis(string id, string ali)
         {
             ID = id;
             alias = ali;
         }
+    }
+
+    public class MyProto
+    {
+
     }
 }

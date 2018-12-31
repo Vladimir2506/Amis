@@ -15,161 +15,96 @@ namespace Amis
         private const int bufferSize = 4096;
         private const int fileBufferSize = 65536;
 
-        private Socket socketListen = null;
-        private Socket socketPeer = null;
         private Thread threadRecv = null;
-        private InterThreads inters = null;
+        private InterThreads inter = null;
+        private IntraThreads intra = null;
         private byte[] recvBuffer = null;
-        private byte[] sendBuffer = null;
 
-        public P2PModule()
+        private TcpListener listener = null;
+        private TcpClient peer = null;
+        public IPAddress theIP = null;
+
+        private static P2PModule instance = null;
+
+        public static P2PModule GetInstance()
         {
-            inters = InterThreads.GetInstance();
-            socketListen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socketPeer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            threadRecv = new Thread(AcceptRecvAsync1);
+            if(instance == null)
+            {
+                instance = new P2PModule();
+            }
+            return instance;
         }
 
-        public void SendDataAsync(byte[] data, string targetIP, int targetPort)
+        private P2PModule()
         {
-            try
-            {
-                socketPeer.BeginConnect(new IPEndPoint(IPAddress.Parse(targetIP), targetPort), SendDataAsync2, socketPeer);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "发起连接错误");
-            }
+            inter = InterThreads.GetInstance();
+            intra = IntraThreads.GetInstance();
+            theIP = GetIPV4();
+            listener = new TcpListener(theIP, IntraThreads.portNO);
+            peer = new TcpClient();
         }
 
-        public void SendDataAsync2(IAsyncResult ar)
+        public void SendData(byte[] data, string targetIP, int targetPort)
         {
-            Socket selfSocket = (Socket)ar.AsyncState;
-            try
-            {
-                selfSocket.EndConnect(ar);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "连接错误");
-            }
-            try
-            {
-                selfSocket.BeginSend(sendBuffer, 0, sendBuffer.Length, SocketFlags.None, SendDataAsync3, selfSocket);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "启动发送错误");
-            }
+            peer.Connect(targetIP, targetPort);
+            NetworkStream stream = peer.GetStream();
+            stream.Write(data, 0, data.Length);
+            stream.Close();
+            peer.Close();
         }
 
-        private void SendDataAsync3(IAsyncResult ar)
+        public void BeginListen()
         {
-            Socket selfSocket = (Socket)ar.AsyncState;
-            try
+            threadRecv = new Thread(AcceptRecv)
             {
-                selfSocket.EndSend(ar);
-            }
-            catch (Exception e)
+                Name = "MyNetMessage"
+            };
+            lock (inter)
             {
-                MessageBox.Show(e.Message, "发送错误");
+                inter.listening = true;
             }
-        }
-
-        public void BeginListen(int portNO, int backlog)
-        {
-            socketListen.Bind(new IPEndPoint(GetIPV4(), portNO));
-            try
-            {
-                socketListen.Listen(backlog);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "监听错误");
-            }
-            inters.listening = true;
+            listener.Start();
             threadRecv.Start();
         }
 
         public void EndListen()
         {
-            lock (inters)
+            lock (inter)
             {
-                inters.listening = false;
+                inter.listening = false;
             }
             threadRecv.Join();
-            socketListen.Close();
+            listener.Stop();
         }
 
-        private void AcceptRecvAsync1()
+        private void AcceptRecv()
         {
             bool ongoing = true;
             while (ongoing)
             {
-                try
+                if (listener.Pending())
                 {
-                    socketListen.BeginAccept(AcceptRecvAsync2, socketListen);
+                    TcpClient client = listener.AcceptTcpClient();
+                    NetworkStream stream = client.GetStream();
+                    if (stream.DataAvailable)
+                    {
+                        recvBuffer = new byte[bufferSize];
+                        int len = stream.Read(recvBuffer, 0, bufferSize);
+                        byte[] msg = new byte[len];
+                        Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
+                        lock (inter)
+                        {
+                            inter.messages.Enqueue(msg);
+                        }
+                    }
+                    stream.Close();
+                    client.Close();
                 }
-                catch(Exception e)
+                lock (inter)
                 {
-                    MessageBox.Show(e.Message, "启动接受错误");
-                }
-                lock (inters)
-                {
-                    ongoing = inters.listening;
-                }
-            }
-        }
-
-        public void AcceptRecvAsync2(IAsyncResult ar)
-        {
-            Socket selfSocket = (Socket)ar.AsyncState;
-            try
-            {
-                Socket recvSocket = selfSocket.EndAccept(ar);
-                recvBuffer = new byte[bufferSize];
-                try
-                {
-                    recvSocket.BeginReceive(recvBuffer, 0, bufferSize, SocketFlags.None, AcceptRecvAsync3, recvSocket);
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show(e.Message, "发起接收错误");
+                    ongoing = inter.listening;
                 }
             }
-            catch (Exception e)
-            {
-                MessageBox.Show(e.Message, "接受错误");
-            }
-            
-        }
-
-        public void AcceptRecvAsync3(IAsyncResult ar)
-        {
-            Socket recvSocket = (Socket)ar.AsyncState;
-            try
-            {
-                int len = recvSocket.EndReceive(ar);
-                lock (inters)
-                lock (recvBuffer)
-                {
-                    byte[] msg = new byte[len];
-                    Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
-                    inters.messages.Append(msg);
-                }
-            }
-            catch(Exception e)
-            {
-                MessageBox.Show(e.Message, "接收错误");
-            }
-            recvSocket.BeginDisconnect(true, AcceptRecvAsync4, recvSocket);
-        }
-
-        public void AcceptRecvAsync4(IAsyncResult ar)
-        {
-            Socket recvSocket = (Socket)ar.AsyncState;
-            recvSocket.EndDisconnect(ar);
-            recvSocket.Close();
         }
 
         private IPAddress GetIPV4()

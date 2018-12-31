@@ -23,7 +23,7 @@ namespace Amis
     /// </summary>
     public partial class MainWindow : Window
     {
-        private CSModule connectionToServer = null;
+        private CSModule csCore = null;
         private string result = null;
         private string userID = null;
         private string passwd = null;
@@ -36,13 +36,12 @@ namespace Amis
 
         private void AmisLogin_Loaded(object sender, RoutedEventArgs e)
         {
-            connectionToServer = new CSModule("166.111.140.14", 8000);
+            csCore = CSModule.GetInstance();
         }
 
         private void AmisLogin_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            //result = connectionToServer.QueryOnce("logout"+userID);
-            connectionToServer.Release();
+            
         }
 
         private void BtnExit_Click(object sender, RoutedEventArgs e)
@@ -84,7 +83,7 @@ namespace Amis
         {
             userID = tbUsername.Text;
             passwd = tbPassword.Password;
-            result = connectionToServer.QueryOnce(userID + "_" + passwd);
+            result = csCore.QueryOnce(userID + "_" + passwd);
             if (result == "lol")
             {
                 IntraThreads.GetInstance().monId = userID;
