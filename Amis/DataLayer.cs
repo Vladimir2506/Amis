@@ -43,13 +43,14 @@ namespace Amis
         public string monAlias = null;
         public List<string> amisIds = null;
         public ObservableCollection<MonAmis> amisCollection = null;
-        public Dictionary<string, List<Piece>> history = null;
+        public Dictionary<string, ObservableCollection<Piece>> history = null;
+        public int currentChat = -1;
 
         private IntraThreads()
         {
             amisIds = new List<string>();
             amisCollection = new ObservableCollection<MonAmis>();
-            history = new Dictionary<string, List<Piece>>();
+            history = new Dictionary<string, ObservableCollection<Piece>>();
             monAlias = "未设置备注";
         }
 
@@ -69,36 +70,34 @@ namespace Amis
     public class Piece
     {
         public PieceType type;
-        public string content = null;
-        public string srcID = null;
-        public string dstID = null;
-        public string timestamp = null;
-
-        public bool lazyDel = false;
+        public string Content { get; set; }
+        public string SrcID { get; set; }
+        public string DstID { get; set; }
+        public string Timestamp { get; set; }
 
         public Piece(PieceType pt, string src, string dst, string con, string ts)
         {
             type = pt;
-            srcID = src;
-            dstID = dst;
-            content = con;
-            timestamp = ts;
+            SrcID = src;
+            DstID = dst;
+            Content = con;
+            Timestamp = ts;
         }
     }
 
     public class MonAmis
     {
         public string ID { get; set; }
-        public string alias { get; set; }
+        public string Alias { get; set; }
 
-        public bool online { get; set; }
-        public string lastActivated { get; set; }
-        public string lastIP { get; set; }
+        public bool Online { get; set; }
+        public string LastActivated { get; set; }
+        public string LastIP { get; set; }
 
         public MonAmis(string id)
         {
             ID = id;
-            alias = "未设置备注";
+            Alias = "未设置备注";
         }
     }
 

@@ -14,6 +14,7 @@ using System.Windows.Shapes;
 using System.Threading;
 using MaterialDesignThemes.Wpf;
 using MaterialDesignColors;
+using System.Net;
 
 namespace Amis
 {
@@ -111,27 +112,38 @@ namespace Amis
         private void MainLogic(byte[] msg)
         {
             MyProto fetches = MyProto.UnpackMessage(msg);
-            if(fetches.Type == MessageType.Text)
+            if(fetches.Type == MessageType.Text && fetches.ToId == intra.monId)
             {
-                AddMessage(fetches.Text);
+                AddMessage(fetches.Text, true);
             }
         }
 
         private void BtnSend_Click(object sender, RoutedEventArgs e)
         {
-            lstAmisSingle.Items.Refresh(); if (lstAmisGroup.SelectedIndex == -1 && lstAmisSingle.SelectedIndex == -1) return;
-
-            if(tbSender.Text != "")
-            {
-                AddMessage(tbSender.Text);
-                MyProto fetches = new MyProto();
-                fetches.Type = MessageType.Text;
-                fetches.Text = tbSender.Text;
-                p2pCore.SendData(MyProto.PackMessage(fetches), p2pCore.theIP.ToString(), 15120);
-            }
+            SendMessage();
         }
 
-        private void AddMessage(string on)
+        private void SendMessage()
+        {
+            if (intra.currentChat == -1) return;
+
+            if (tbSender.Text != "")
+            {
+                AddMessage(tbSender.Text, false);
+                MyProto fetches = new MyProto
+                {
+                    Type = MessageType.Text,
+                    Text = tbSender.Text,
+                    FromId = intra.monId,
+                    ToId = intra.amisIds[intra.currentChat]
+                };
+                p2pCore.SendData(MyProto.PackMessage(fetches), p2pCore.theIP.ToString(), 15120);
+            }
+
+            tbSender.Text = "";
+        }
+
+        private void AddMessage(string on, bool recv)
         {
             TextBlock blockMsg = new TextBlock()
             {
@@ -144,14 +156,15 @@ namespace Amis
             Card cardMsg = new Card()
             {
                 Content = blockMsg,
-                Margin = new Thickness(5, 8, 8, 2)
+                Margin = new Thickness(10, 5, 10, 5),
+                UniformCornerRadius = 5
             };
             cardMsg.SetResourceReference(BackgroundProperty, "PrimaryHueMidBrush");
             cardMsg.SetResourceReference(ForegroundProperty, "PrimaryHueMidForegroundBrush");
             ListBoxItem itemMsg = new ListBoxItem()
             {
                 Content = cardMsg,
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = recv ? HorizontalAlignment.Left : HorizontalAlignment.Right,
                 MinWidth = 15
             };
             lbMessage.Items.Add(itemMsg);
@@ -162,7 +175,6 @@ namespace Amis
         {
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Visible;
-            spNewGroup.Visibility = Visibility.Collapsed;
             spSetAlias.Visibility = Visibility.Collapsed;
         }
 
@@ -170,8 +182,6 @@ namespace Amis
         {
             FindAmis();
         }
-
-
 
         void FindAmis()
         {
@@ -181,21 +191,30 @@ namespace Amis
                 lblFindSingleRes.Content = "您已经添加了";
                 return;
             }
-            if (idToFind == intra.monId)
+            /*if (idToFind == intra.monId)
             {
                 lblFindSingleRes.Content = "请不要添加自己";
                 return;
-            }
+            }*/
             string result = csCore.QueryOnce("q" + idToFind);
-            if (result.Length <= 15 && result != "n")
+            bool validIP = true;
+            try
+            {
+                IPAddress.Parse(result);
+            }
+            catch
+            {
+                validIP = false;
+            }
+            if (validIP)
             {
                 intra.amisIds.Add(idToFind);
                 MonAmis noveau = new MonAmis(idToFind)
                 {
                     ID = idToFind,
-                    lastActivated = DateTime.Now.ToShortTimeString(),
-                    online = true,
-                    lastIP = result
+                    LastActivated = DateTime.Now.ToShortTimeString(),
+                    Online = true,
+                    LastIP = result
                 };
                 intra.amisCollection.Add(noveau);
                 tbFindAmis.Text = "";
@@ -234,7 +253,6 @@ namespace Amis
             setIdx = -1;
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Collapsed;
-            spNewGroup.Visibility = Visibility.Collapsed;
             spSetAlias.Visibility = Visibility.Visible;
         }
 
@@ -247,10 +265,11 @@ namespace Amis
             }
             else
             {
-                intra.amisCollection[idx].alias = on;
+                intra.amisCollection[idx].Alias = on;
                 lstAmisSingle.Items.Refresh();
+                UpdateChatTitle(idx);
             }
-            idx = -1;
+            setIdx = -1;
         }
 
         private void TbAlias_KeyDown(object sender, KeyEventArgs e)
@@ -265,15 +284,24 @@ namespace Amis
 
         private void TbFindAmis_KeyDown(object sender, KeyEventArgs e)
         {
-            if(e.Key == Key.Enter)
+            if (e.Key == Key.Enter)
             {
                 FindAmis();
             }
         }
 
-        private void LstAmisSingle_Selected(object sender, RoutedEventArgs e)
+        private void LstAmisSingle_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            /* Very Important.*/
+            int selAmis = lstAmisSingle.SelectedIndex;
+            intra.currentChat = selAmis;
+            UpdateChatTitle(selAmis);
+        }
+
+        private void UpdateChatTitle(int idx)
+        {
+            MonAmis amisChat = intra.amisCollection[idx];
+            string chatTitle = amisChat.Alias == "未设置备注" ? amisChat.ID : amisChat.Alias;
+            lblChat.Content = chatTitle;
         }
 
         private void LstAmisSingle_PreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -281,8 +309,15 @@ namespace Amis
             setIdx = lstAmisSingle.SelectedIndex;
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Collapsed;
-            spNewGroup.Visibility = Visibility.Collapsed;
             spSetAlias.Visibility = Visibility.Visible;
+        }
+
+        private void TbSender_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                SendMessage();
+            }
         }
     }
 }

@@ -120,9 +120,6 @@
                             DockPanel.Dock="Right" Click="BtnCanAli_Click" />
                     </DockPanel>
                 </StackPanel>
-                <StackPanel x:Name="spNewGroup" Background="{StaticResource WhiteWhite}">
-                    
-                </StackPanel>
             </Grid>
         </materialDesign:DialogHost.DialogContent>
         <Grid x:Name="GridBackground">
@@ -154,33 +151,27 @@
                         </ListBox>
                     </materialDesign:PopupBox>
                     <Label x:Name="lblTitle" Content="Amis" FontWeight="Normal" 
-                       Foreground="White" FontSize="27" FontFamily="Segoe Script" Width="89.02" 
+                       Foreground="{StaticResource WhiteWhite}" FontSize="27" FontFamily="Segoe Script" Width="89.02" 
                        HorizontalContentAlignment="Center" 
                        ScrollViewer.VerticalScrollBarVisibility="Disabled" 
                        VerticalContentAlignment="Center" 
                        VerticalAlignment="Center" Height="52.2" Margin="25,0,0,0"/>
+                    <Label x:Name="lblChat" FontWeight="Normal" Foreground="{StaticResource WhiteWhite}"
+                           DockPanel.Dock="Right" Margin="0,5,250,5" VerticalContentAlignment="Center"
+                           VerticalAlignment="Center" TextElement.FontSize="16" FontFamily="Noto Sans CJK SC Regular"
+                        TextOptions.TextFormattingMode="Display"/>
                 </DockPanel>
             </materialDesign:ColorZone>
             <Button 
             x:Name="btnAddAmis" 
             HorizontalAlignment="Left" 
             Height="45" 
-            Margin="115,45,0,0" 
+            Margin="160,45,0,0" 
             VerticalAlignment="Top" 
             Width="45" 
             Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}" Panel.ZIndex="2" Click="BtnAddAmis_Click"
             >
                 <materialDesign:PackIcon x:Name="icoAddAmis" Kind="PersonAddOutline" Width="27" Height="27" />
-            </Button>
-            <Button 
-            x:Name="btnAddGroup" 
-            Height="45" 
-            Width="45" 
-            VerticalAlignment="Top" 
-            Margin="180,45,0,0"
-            Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}" Panel.ZIndex="2" HorizontalAlignment="Left"
-            >
-                <materialDesign:PackIcon x:Name="icoGroup" Kind="AccountMultiplePlusOutline" Width="27" Height="27" />
             </Button>
             <Button 
             x:Name="btnSend" 
@@ -242,38 +233,40 @@
             >
                 <materialDesign:PackIcon x:Name="icoVoice" Kind="SettingsVoice" Width="27" Height="27" />
             </Button>
-            <TreeView x:Name="trChat" HorizontalAlignment="Left" Margin="0,69.92,0,0" 
-            Width="263.4" Background="{StaticResource GrayDark}"
-            >
-                <TreeViewItem
-                Header="好友" x:Name="triSingle" FocusVisualStyle="{x:Null}" >
-                    <ListBox x:Name="lstAmisSingle" ListBoxItem.Selected="LstAmisSingle_Selected" ListBoxItem.PreviewMouseDoubleClick="LstAmisSingle_PreviewMouseDoubleClick">
+
+            <Expander x:Name="exChat" HorizontalAlignment="Left" Margin="0,69.92,0,0" MaxHeight="580"
+                      Width="263.4" Background="{StaticResource GrayDark}" Header="好友列表">
+                <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
+                    <ListBox x:Name="lstAmisSingle" 
+                         SelectionChanged="LstAmisSingle_SelectionChanged" 
+                         ListBoxItem.PreviewMouseDoubleClick="LstAmisSingle_PreviewMouseDoubleClick"
+                          >
                         <ListBox.ItemTemplate>
                             <DataTemplate x:Name="AmisListItem" DataType="{x:Type local:MonAmis}" >
-                                <StackPanel x:Name="spAmisLR" Orientation="Horizontal" FocusVisualStyle="{x:Null}">
-                                    <materialDesign:PackIcon x:Name="icoPortrait" Kind="AccountCircle" Width="35" Height="35" Margin="2,5,0,5" VerticalAlignment="Center"/>
+                                <StackPanel x:Name="spAmisLR" Orientation="Horizontal" Margin="40,2,1,1">
+                                    <materialDesign:PackIcon x:Name="icoPortrait" Kind="AccountCircle" Width="38" Height="38" Margin="2,0,0,0" VerticalAlignment="Center"/>
                                     <StackPanel x:Name="spAmisTB">
                                         <DockPanel x:Name="dpAmisIDLA" >
-                                            <Label x:Name="lblAmisID" DockPanel.Dock="Left" Margin="5,2,0,0" Content="{Binding ID}"/>
-                                            <Label x:Name="lblAmisAc" DockPanel.Dock="Right" Margin="0,2,0,0" Content="{Binding lastActivated}"/>
+                                            <Label x:Name="lblAmisID" DockPanel.Dock="Left" Margin="5,0,0,0" Content="{Binding ID}"/>
+                                            <Label x:Name="lblAmisAc" DockPanel.Dock="Right" Margin="0,0,0,0" Content="{Binding LastActivated}"/>
                                         </DockPanel>
                                         <DockPanel x:Name="dpAmisALON">
-                                            <Label x:Name="tbAmisAlias" DockPanel.Dock="Left" Content="{Binding alias}"/>
+                                            <Label x:Name="tbAmisAlias" DockPanel.Dock="Left" Content="{Binding Alias}" Margin="5,0,0,0"/>
                                         </DockPanel>
                                     </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                </TreeViewItem>
-                <TreeViewItem
-                Header="群聊"
-                x:Name="triGroup" 
-                >
-                    <ListBox x:Name="lstAmisGroup"/>
-                </TreeViewItem>
-            </TreeView>
-            <ListBox x:Name="lbMessage" Margin="263.4,69.92,0,189.28"/>
+                </ScrollViewer>
+            </Expander>
+            <ListBox x:Name="lbMessage" Margin="263.4,69.92,0,189.28" ScrollViewer.CanContentScroll="False" >
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:Name="lstMessagesItem">
+                        
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
             <materialDesign:ColorZone 
             x:Name="czSender" 
             VerticalAlignment="Bottom" 
@@ -288,9 +281,9 @@
                         AcceptsReturn="True"
                         TextWrapping="Wrap"
                         VerticalScrollBarVisibility="Auto"
-                        materialDesign:HintAssist.Hint="说点什么吧…" 
+                        materialDesign:HintAssist.Hint="说点什么吧……" 
                         HorizontalContentAlignment="Left"
-                        FontSize="15"     />
+                        FontSize="15" KeyDown="TbSender_KeyDown"     />
             </materialDesign:ColorZone>
         </Grid>
     </materialDesign:DialogHost>
