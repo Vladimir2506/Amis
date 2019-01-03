@@ -12,8 +12,7 @@ namespace Amis
 {
     public class P2PModule
     {
-        private const int bufferSize = 4096;
-        private const int fileBufferSize = 65536;
+        private const int bufferSize = 4 * 1024 * 1024;
 
         private Thread threadRecv = null;
         private InterThreads inter = null;
@@ -41,11 +40,11 @@ namespace Amis
             intra = IntraThreads.GetInstance();
             theIP = GetIPV4();
             listener = new TcpListener(theIP, IntraThreads.portNO);
-            peer = new TcpClient();
         }
 
         public void SendData(byte[] data, string targetIP, int targetPort)
         {
+            peer = new TcpClient();
             peer.Connect(targetIP, targetPort);
             NetworkStream stream = peer.GetStream();
             stream.Write(data, 0, data.Length);

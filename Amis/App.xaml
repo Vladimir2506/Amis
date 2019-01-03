@@ -2,7 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Amis"
-             StartupUri="MainWindow.xaml">
+             StartupUri="MainWindow.xaml"
+             x:Name="TheAmis"
+             >
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -13,7 +15,13 @@
                 <!--Set colours-->
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignColors;component/Themes/Recommended/Primary/MaterialDesignColor.Blue.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignColors;component/Themes/Recommended/Accent/MaterialDesignColor.Yellow.xaml" />
-                
+                <ResourceDictionary>
+                    <!-- primary -->
+                    <SolidColorBrush x:Key="GrayDark" Color="#EEEEEE" />
+                    <SolidColorBrush x:Key="GrayLight" Color="#FAFAFA" />
+                    <SolidColorBrush x:Key="WhiteWhite" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="RedAlert" Color="#FF1744" />
+                </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

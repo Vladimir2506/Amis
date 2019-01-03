@@ -12,6 +12,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Threading;
+using MaterialDesignThemes.Wpf;
+using MaterialDesignColors;
 
 namespace Amis
 {
@@ -26,6 +28,8 @@ namespace Amis
         private P2PModule p2pCore = null;
         private Thread threadPump = null;
 
+        private int setIdx = -1;
+
         public ChatWindow()
         {
             InitializeComponent();
@@ -33,10 +37,9 @@ namespace Amis
             inter = InterThreads.GetInstance();
             intra = IntraThreads.GetInstance();
 
-            intra.monAlias = "夏卓凡";
-
             p2pCore = P2PModule.GetInstance();
             csCore = CSModule.GetInstance();
+            lock (inter) inter.processing = true;
             threadPump = new Thread(Relay)
             {
                 Name = "MyMessagePump"
@@ -66,14 +69,12 @@ namespace Amis
         {
 
             // TODO:Loading data...
-
-            tbSelfInfo.Inlines.Add(new Run(intra.monId));
-            tbSelfInfo.Inlines.Add(new LineBreak());
-            tbSelfInfo.Inlines.Add(new Run(intra.monAlias));
-
-            // TODO:Set up message loop
+            lblSelfID.Content = "我：" + intra.monId;
+            lblSelfAli.Content = intra.monAlias;
             p2pCore.BeginListen();
             threadPump.Start();
+
+            lstAmisSingle.ItemsSource = intra.amisCollection;
         }
 
         private void CzTop_MouseMove(object sender, MouseEventArgs e)
@@ -109,7 +110,179 @@ namespace Amis
 
         private void MainLogic(byte[] msg)
         {
-            // TODO: Protocol                        
+            MyProto fetches = MyProto.UnpackMessage(msg);
+            if(fetches.Type == MessageType.Text)
+            {
+                AddMessage(fetches.Text);
+            }
+        }
+
+        private void BtnSend_Click(object sender, RoutedEventArgs e)
+        {
+            lstAmisSingle.Items.Refresh(); if (lstAmisGroup.SelectedIndex == -1 && lstAmisSingle.SelectedIndex == -1) return;
+
+            if(tbSender.Text != "")
+            {
+                AddMessage(tbSender.Text);
+                MyProto fetches = new MyProto();
+                fetches.Type = MessageType.Text;
+                fetches.Text = tbSender.Text;
+                p2pCore.SendData(MyProto.PackMessage(fetches), p2pCore.theIP.ToString(), 15120);
+            }
+        }
+
+        private void AddMessage(string on)
+        {
+            TextBlock blockMsg = new TextBlock()
+            {
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 325,
+                Padding = new Thickness(10),
+                Text = on
+            };
+            Card cardMsg = new Card()
+            {
+                Content = blockMsg,
+                Margin = new Thickness(5, 8, 8, 2)
+            };
+            cardMsg.SetResourceReference(BackgroundProperty, "PrimaryHueMidBrush");
+            cardMsg.SetResourceReference(ForegroundProperty, "PrimaryHueMidForegroundBrush");
+            ListBoxItem itemMsg = new ListBoxItem()
+            {
+                Content = cardMsg,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 15
+            };
+            lbMessage.Items.Add(itemMsg);
+        }
+        
+
+        private void BtnAddAmis_Click(object sender, RoutedEventArgs e)
+        {
+            dlgAdd.IsOpen = true;
+            spNewSingle.Visibility = Visibility.Visible;
+            spNewGroup.Visibility = Visibility.Collapsed;
+            spSetAlias.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnFindAmis_Click(object sender, RoutedEventArgs e)
+        {
+            FindAmis();
+        }
+
+
+
+        void FindAmis()
+        {
+            string idToFind = tbFindAmis.Text;
+            if (intra.amisIds.Contains(idToFind))
+            {
+                lblFindSingleRes.Content = "您已经添加了";
+                return;
+            }
+            if (idToFind == intra.monId)
+            {
+                lblFindSingleRes.Content = "请不要添加自己";
+                return;
+            }
+            string result = csCore.QueryOnce("q" + idToFind);
+            if (result.Length <= 15 && result != "n")
+            {
+                intra.amisIds.Add(idToFind);
+                MonAmis noveau = new MonAmis(idToFind)
+                {
+                    ID = idToFind,
+                    lastActivated = DateTime.Now.ToShortTimeString(),
+                    online = true,
+                    lastIP = result
+                };
+                intra.amisCollection.Add(noveau);
+                tbFindAmis.Text = "";
+                lblFindSingleRes.Content = "";
+                dlgAdd.IsOpen = false;
+            }
+            else if (result == "n")
+            {
+                lblFindSingleRes.Content = "用户不在线";
+            }
+            else
+            {
+                lblFindSingleRes.Content = "查询错误";
+            }
+        }
+
+        private void BtnExitFindAmis_Click(object sender, RoutedEventArgs e)
+        {
+            tbFindAmis.Text = "";
+            lblFindSingleRes.Content = "";
+        }
+
+        private void BtnAccAli_Click(object sender, RoutedEventArgs e)
+        {
+            SetAlias(setIdx, tbAlias.Text);
+            tbAlias.Text = "";
+        }
+
+        private void BtnCanAli_Click(object sender, RoutedEventArgs e)
+        {
+            tbAlias.Text = "";
+        }
+
+        private void LbiSelf_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            setIdx = -1;
+            dlgAdd.IsOpen = true;
+            spNewSingle.Visibility = Visibility.Collapsed;
+            spNewGroup.Visibility = Visibility.Collapsed;
+            spSetAlias.Visibility = Visibility.Visible;
+        }
+
+        private void SetAlias(int idx, string on)
+        {
+            if (idx == -1)
+            {
+                intra.monAlias = on;
+                lblSelfAli.Content = on;
+            }
+            else
+            {
+                intra.amisCollection[idx].alias = on;
+                lstAmisSingle.Items.Refresh();
+            }
+            idx = -1;
+        }
+
+        private void TbAlias_KeyDown(object sender, KeyEventArgs e)
+        {
+            if(e.Key == Key.Enter)
+            {
+                SetAlias(setIdx, tbAlias.Text);
+                tbAlias.Text = "";
+                dlgAdd.IsOpen = false;
+            }
+        }
+
+        private void TbFindAmis_KeyDown(object sender, KeyEventArgs e)
+        {
+            if(e.Key == Key.Enter)
+            {
+                FindAmis();
+            }
+        }
+
+        private void LstAmisSingle_Selected(object sender, RoutedEventArgs e)
+        {
+            /* Very Important.*/
+        }
+
+        private void LstAmisSingle_PreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            setIdx = lstAmisSingle.SelectedIndex;
+            dlgAdd.IsOpen = true;
+            spNewSingle.Visibility = Visibility.Collapsed;
+            spNewGroup.Visibility = Visibility.Collapsed;
+            spSetAlias.Visibility = Visibility.Visible;
         }
     }
 }

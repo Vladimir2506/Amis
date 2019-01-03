@@ -63,7 +63,7 @@ namespace Amis
             DoLogin();
         }
 
-        private void RectTitlebar_MouseMove(object sender, MouseEventArgs e)
+        private void CzTitlebar_MouseMove(object sender, MouseEventArgs e)
         {
             if(e.LeftButton == MouseButtonState.Pressed)
             {
