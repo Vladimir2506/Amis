@@ -15,6 +15,9 @@ using System.Threading;
 using MaterialDesignThemes.Wpf;
 using MaterialDesignColors;
 using System.Net;
+using System.Globalization;
+using System.IO;
+using Microsoft.Win32;
 
 namespace Amis
 {
@@ -28,8 +31,12 @@ namespace Amis
         private CSModule csCore = null;
         private P2PModule p2pCore = null;
         private Thread threadPump = null;
-
+        private const int fileBufferSize = 15 * 1024 * 1024;
+        private const int maxPicLength = 1500;
+        private byte[] fileBuffer = null;
         private int setIdx = -1;
+        private string folderName = null;
+        private string cacheFolderName = null;
 
         public ChatWindow()
         {
@@ -40,6 +47,9 @@ namespace Amis
 
             p2pCore = P2PModule.GetInstance();
             csCore = CSModule.GetInstance();
+
+            fileBuffer = new byte[fileBufferSize];
+
             lock (inter) inter.processing = true;
             threadPump = new Thread(Relay)
             {
@@ -50,7 +60,7 @@ namespace Amis
         private void AmisChat_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             p2pCore.EndListen();
-            lock(inter)
+            lock (inter)
             {
                 inter.processing = false;
             }
@@ -72,6 +82,12 @@ namespace Amis
             // TODO:Loading data...
             lblSelfID.Content = "我：" + intra.monId;
             lblSelfAli.Content = intra.monAlias;
+
+            folderName = "./" + intra.monId + "/";
+            if (!Directory.Exists(folderName)) Directory.CreateDirectory(folderName);
+            cacheFolderName = folderName + "Cache/";
+            if (!Directory.Exists(cacheFolderName)) Directory.CreateDirectory(cacheFolderName);
+
             p2pCore.BeginListen();
             threadPump.Start();
 
@@ -89,18 +105,21 @@ namespace Amis
         private void Relay()
         {
             bool ongoing = true;
-            while(ongoing)
+            while (ongoing)
             {
                 byte[] msg = null;
-                lock(inter)
+                lock (inter)
                 {
-                    if (inter.messages.Count > 0) msg = inter.messages.Dequeue();
+                    if (inter.messages.Count > 0)
+                    {
+                        msg = inter.messages.Dequeue();
+                    }
                 }
                 if (msg != null && msg.Length > 0)
                 {
-                    Dispatcher.BeginInvoke(new LogicProc(MainLogic), msg);
+                    Dispatcher.BeginInvoke(new LogicProc(RecvDispatch), msg);
                 }
-                lock(inter)
+                lock (inter)
                 {
                     ongoing = inter.processing;
                 }
@@ -109,13 +128,61 @@ namespace Amis
 
         private delegate void LogicProc(byte[] msg);
 
-        private void MainLogic(byte[] msg)
+        private async void RecvDispatch(byte[] msg)
         {
             MyProto fetches = MyProto.UnpackMessage(msg);
-            if(fetches.Type == MessageType.Text && fetches.ToId == intra.monId)
+            if (fetches.ToId != intra.monId) return;
+            string timeUpd = null;
+            switch (fetches.Type)
             {
-                AddMessage(fetches.Text, true);
+                case MessageType.Text:
+                    Piece textPiece = new Piece()
+                    {
+                        MsgType = PieceType.Text,
+                        Content = fetches.Text,
+                        DstID = fetches.ToId,
+                        SrcID = fetches.FromId,
+                        Timestamp = DateTime.Now.ToShortTimeString(),
+                        HorizAlgn = HorizontalAlignment.Left
+                    };
+                    intra.history[fetches.FromId].Add(textPiece);
+                    timeUpd = textPiece.Timestamp;
+                    break;
+                case MessageType.File:
+                case MessageType.Pic:
+                case MessageType.Exp:
+                    string filename = cacheFolderName + fetches.Text;
+                    FileStream fs = File.OpenWrite(filename);
+                    Piece filePiece = new Piece()
+                    {
+                        DstID = fetches.ToId,
+                        SrcID = fetches.FromId,
+                        Content = fetches.Text,
+                        FilePath = System.IO.Path.GetFullPath(filename),
+                        HorizAlgn = HorizontalAlignment.Left,
+                        Timestamp = DateTime.Now.ToShortTimeString()
+                    };
+                    if (fetches.Type == MessageType.File)
+                    {
+                        filePiece.MsgType = PieceType.File;
+                    }
+                    else if (fetches.Type == MessageType.Pic)
+                    {
+                        filePiece.MsgType = PieceType.Image;
+                    }
+                    else if(fetches.Type == MessageType.Exp)
+                    {
+                        filePiece.MsgType = PieceType.DynExp;
+                    }
+                    await fs.WriteAsync(fetches.FilePart, 0, fetches.FilePart.Length);
+                    fs.Close();
+                    intra.history[fetches.FromId].Add(filePiece);
+                    timeUpd = filePiece.Timestamp;
+                    break;
             }
+            intra.amisCollection[intra.currentChat].LastActivated = timeUpd;
+            lstAmisSingle.Items.Refresh();
+
         }
 
         private void BtnSend_Click(object sender, RoutedEventArgs e)
@@ -126,10 +193,23 @@ namespace Amis
         private void SendMessage()
         {
             if (intra.currentChat == -1) return;
-
+            string olCheck = intra.amisIds[intra.currentChat];
+            string result = csCore.QueryOnce("q" + olCheck);
+            try
+            {
+                IPAddress.Parse(result);
+            }
+            catch
+            {
+                lblNotif.Content = "朋友当前离线";
+                dlgAdd.IsOpen = true;
+                spNotif.Visibility = Visibility.Visible;
+                spSetAlias.Visibility = Visibility.Collapsed;
+                spNewSingle.Visibility = Visibility.Collapsed;
+                return;
+            }
             if (tbSender.Text != "")
             {
-                AddMessage(tbSender.Text, false);
                 MyProto fetches = new MyProto
                 {
                     Type = MessageType.Text,
@@ -137,45 +217,28 @@ namespace Amis
                     FromId = intra.monId,
                     ToId = intra.amisIds[intra.currentChat]
                 };
-                p2pCore.SendData(MyProto.PackMessage(fetches), p2pCore.theIP.ToString(), 15120);
+                Piece pack = new Piece()
+                {
+                    MsgType = PieceType.Text,
+                    Content = fetches.Text,
+                    DstID = fetches.ToId,
+                    SrcID = fetches.FromId,
+                    Timestamp = DateTime.Now.ToShortTimeString(),
+                    HorizAlgn = HorizontalAlignment.Right
+                };
+                intra.history[fetches.ToId].Add(pack);
+                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
             }
 
             tbSender.Text = "";
         }
-
-        private void AddMessage(string on, bool recv)
-        {
-            TextBlock blockMsg = new TextBlock()
-            {
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 325,
-                Padding = new Thickness(10),
-                Text = on
-            };
-            Card cardMsg = new Card()
-            {
-                Content = blockMsg,
-                Margin = new Thickness(10, 5, 10, 5),
-                UniformCornerRadius = 5
-            };
-            cardMsg.SetResourceReference(BackgroundProperty, "PrimaryHueMidBrush");
-            cardMsg.SetResourceReference(ForegroundProperty, "PrimaryHueMidForegroundBrush");
-            ListBoxItem itemMsg = new ListBoxItem()
-            {
-                Content = cardMsg,
-                HorizontalAlignment = recv ? HorizontalAlignment.Left : HorizontalAlignment.Right,
-                MinWidth = 15
-            };
-            lbMessage.Items.Add(itemMsg);
-        }
-        
 
         private void BtnAddAmis_Click(object sender, RoutedEventArgs e)
         {
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Visible;
             spSetAlias.Visibility = Visibility.Collapsed;
+            spNotif.Visibility = Visibility.Collapsed;
         }
 
         private void BtnFindAmis_Click(object sender, RoutedEventArgs e)
@@ -217,6 +280,7 @@ namespace Amis
                     LastIP = result
                 };
                 intra.amisCollection.Add(noveau);
+                intra.history.Add(idToFind, new System.Collections.ObjectModel.ObservableCollection<Piece>());
                 tbFindAmis.Text = "";
                 lblFindSingleRes.Content = "";
                 dlgAdd.IsOpen = false;
@@ -254,6 +318,7 @@ namespace Amis
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Collapsed;
             spSetAlias.Visibility = Visibility.Visible;
+            spNotif.Visibility = Visibility.Collapsed;
         }
 
         private void SetAlias(int idx, string on)
@@ -265,7 +330,7 @@ namespace Amis
             }
             else
             {
-                intra.amisCollection[idx].Alias = on;
+                intra.amisCollection[idx].Alias = on == "" ? "未设置备注" : on;
                 lstAmisSingle.Items.Refresh();
                 UpdateChatTitle(idx);
             }
@@ -274,7 +339,7 @@ namespace Amis
 
         private void TbAlias_KeyDown(object sender, KeyEventArgs e)
         {
-            if(e.Key == Key.Enter)
+            if (e.Key == Key.Enter)
             {
                 SetAlias(setIdx, tbAlias.Text);
                 tbAlias.Text = "";
@@ -295,6 +360,8 @@ namespace Amis
             int selAmis = lstAmisSingle.SelectedIndex;
             intra.currentChat = selAmis;
             UpdateChatTitle(selAmis);
+            string idSel = intra.amisIds[selAmis];
+            lbMessage.ItemsSource = intra.history[idSel];
         }
 
         private void UpdateChatTitle(int idx)
@@ -310,6 +377,7 @@ namespace Amis
             dlgAdd.IsOpen = true;
             spNewSingle.Visibility = Visibility.Collapsed;
             spSetAlias.Visibility = Visibility.Visible;
+            spNotif.Visibility = Visibility.Collapsed;
         }
 
         private void TbSender_KeyDown(object sender, KeyEventArgs e)
@@ -318,6 +386,255 @@ namespace Amis
             {
                 SendMessage();
             }
+        }
+
+        private void LblChat_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            setIdx = lstAmisSingle.SelectedIndex;
+            dlgAdd.IsOpen = true;
+            spNewSingle.Visibility = Visibility.Collapsed;
+            spSetAlias.Visibility = Visibility.Visible;
+            spNotif.Visibility = Visibility.Collapsed;
+        }
+
+        private async void BtnSendFile_Click(object sender, RoutedEventArgs e)
+        {
+            if (intra.currentChat == -1) return;
+            string olCheck = intra.amisIds[intra.currentChat];
+            string result = csCore.QueryOnce("q" + olCheck);
+            try
+            {
+                IPAddress.Parse(result);
+            }
+            catch
+            {
+                lblNotif.Content = "朋友当前离线";
+                dlgAdd.IsOpen = true;
+                spNotif.Visibility = Visibility.Visible;
+                spSetAlias.Visibility = Visibility.Collapsed;
+                spNewSingle.Visibility = Visibility.Collapsed;
+                return;
+            }
+            OpenFileDialog dlgFileTransmit = new OpenFileDialog
+            {
+                Title = "选择要发送的文件",
+                Multiselect = false,
+                DereferenceLinks = true
+            };
+            if (dlgFileTransmit.ShowDialog() == true)
+            {
+                Array.Clear(fileBuffer, 0, fileBuffer.Length);
+                string filename = dlgFileTransmit.FileName;
+                FileInfo info = new FileInfo(filename);
+                if (info.Length > fileBufferSize)
+                {
+                    lblNotif.Content = "不支持过大的文件";
+                    dlgAdd.IsOpen = true;
+                    spNotif.Visibility = Visibility.Visible;
+                    spSetAlias.Visibility = Visibility.Collapsed;
+                    spNewSingle.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                string shortFileName = System.IO.Path.GetFileName(filename);
+                Piece piece = new Piece()
+                {
+                    MsgType = PieceType.File,
+                    FilePath = System.IO.Path.GetFullPath(filename),
+                    SrcID = intra.monId,
+                    DstID = intra.amisIds[intra.currentChat],
+                    Timestamp = DateTime.Now.ToShortTimeString(),
+                    Content = shortFileName,
+                    HorizAlgn = HorizontalAlignment.Right
+                };
+                intra.history[piece.DstID].Add(piece);
+                FileStream fs = File.OpenRead(filename);
+                int fileLength = await fs.ReadAsync(fileBuffer, 0, fileBuffer.Length);
+                MyProto fetches = new MyProto()
+                {
+                    FromId = piece.SrcID,
+                    ToId = piece.DstID,
+                    Type = MessageType.File,
+                    Text = shortFileName,
+                    FilePart = new byte[fileLength]
+                };
+                Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
+                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+
+            }
+        }
+
+        private async void BtnImg_Click(object sender, RoutedEventArgs e)
+        {
+            if (intra.currentChat == -1) return;
+            string olCheck = intra.amisIds[intra.currentChat];
+            string result = csCore.QueryOnce("q" + olCheck);
+            try
+            {
+                IPAddress.Parse(result);
+            }
+            catch
+            {
+                lblNotif.Content = "朋友当前离线";
+                dlgAdd.IsOpen = true;
+                spNotif.Visibility = Visibility.Visible;
+                spSetAlias.Visibility = Visibility.Collapsed;
+                spNewSingle.Visibility = Visibility.Collapsed;
+                return;
+            }
+            OpenFileDialog dlgFileTransmit = new OpenFileDialog
+            {
+                Title = "选择要发送的图片",
+                Multiselect = false,
+                DereferenceLinks = true,
+                Filter = "位图 (.bmp)|*.bmp|联合图像专家组 (.jpg)|*.jpg|便携式网络图形 (.png)|*.png",
+                FilterIndex = 0
+            };
+            if (dlgFileTransmit.ShowDialog() == true)
+            {
+                Array.Clear(fileBuffer, 0, fileBuffer.Length);
+                string filename = dlgFileTransmit.FileName;
+                FileInfo info = new FileInfo(filename);
+                if (info.Length > fileBufferSize)
+                {
+                    lblNotif.Content = "不支持过大的图片";
+                    dlgAdd.IsOpen = true;
+                    spNotif.Visibility = Visibility.Visible;
+                    spSetAlias.Visibility = Visibility.Collapsed;
+                    spNewSingle.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                string shortFileName = System.IO.Path.GetFileName(filename);
+                Piece piece = new Piece()
+                {
+                    MsgType = PieceType.Image,
+                    FilePath = System.IO.Path.GetFullPath(filename),
+                    SrcID = intra.monId,
+                    DstID = intra.amisIds[intra.currentChat],
+                    Timestamp = DateTime.Now.ToShortTimeString(),
+                    Content = shortFileName,
+                    HorizAlgn = HorizontalAlignment.Right
+                };
+                intra.history[piece.DstID].Add(piece);
+                FileStream fs = File.OpenRead(filename);
+                int fileLength = await fs.ReadAsync(fileBuffer, 0, fileBuffer.Length);
+                MyProto fetches = new MyProto()
+                {
+                    FromId = piece.SrcID,
+                    ToId = piece.DstID,
+                    Type = MessageType.Pic,
+                    Text = shortFileName,
+                    FilePart = new byte[fileLength]
+                };
+                Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
+                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+            }
+        }
+
+        private async void BtnSticker_Click(object sender, RoutedEventArgs e)
+        {
+            if (intra.currentChat == -1) return;
+            string olCheck = intra.amisIds[intra.currentChat];
+            string result = csCore.QueryOnce("q" + olCheck);
+            try
+            {
+                IPAddress.Parse(result);
+            }
+            catch
+            {
+                lblNotif.Content = "朋友当前离线";
+                dlgAdd.IsOpen = true;
+                spNotif.Visibility = Visibility.Visible;
+                spSetAlias.Visibility = Visibility.Collapsed;
+                spNewSingle.Visibility = Visibility.Collapsed;
+                return;
+            }
+            OpenFileDialog dlgFileTransmit = new OpenFileDialog
+            {
+                Title = "请选择要发送的动态表情",
+                Multiselect = false,
+                DereferenceLinks = true,
+                Filter = "图像互换格式 (.gif)|*.gif",
+                FilterIndex = 0
+            };
+            if (dlgFileTransmit.ShowDialog() == true)
+            {
+                Array.Clear(fileBuffer, 0, fileBuffer.Length);
+                string filename = dlgFileTransmit.FileName;
+                FileInfo info = new FileInfo(filename);
+                if (info.Length > fileBufferSize)
+                {
+                    lblNotif.Content = "不支持过大的图片";
+                    dlgAdd.IsOpen = true;
+                    spNotif.Visibility = Visibility.Visible;
+                    spSetAlias.Visibility = Visibility.Collapsed;
+                    spNewSingle.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                string shortFileName = System.IO.Path.GetFileName(filename);
+                Piece piece = new Piece()
+                {
+                    MsgType = PieceType.DynExp,
+                    FilePath = System.IO.Path.GetFullPath(filename),
+                    SrcID = intra.monId,
+                    DstID = intra.amisIds[intra.currentChat],
+                    Timestamp = DateTime.Now.ToShortTimeString(),
+                    Content = shortFileName,
+                    HorizAlgn = HorizontalAlignment.Right
+                };
+                intra.history[piece.DstID].Add(piece);
+                FileStream fs = File.OpenRead(filename);
+                int fileLength = await fs.ReadAsync(fileBuffer, 0, fileBuffer.Length);
+                MyProto fetches = new MyProto()
+                {
+                    FromId = piece.SrcID,
+                    ToId = piece.DstID,
+                    Type = MessageType.Exp,
+                    Text = shortFileName,
+                    FilePart = new byte[fileLength]
+                };
+                Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
+                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+            }
+        }
+
+        private void MediaExp_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            var self = sender as MediaElement;
+            self.Position = self.Position.Add(TimeSpan.FromMilliseconds(1));
+        }
+    }
+
+    public class PieceVisConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            Visibility result = Visibility.Collapsed;
+            if ((Type)parameter == typeof(TextBlock))
+            {
+                if ((PieceType)value == PieceType.Text) result = Visibility.Visible;
+            }
+            if((Type)parameter == typeof(Image))
+            {
+                if ((PieceType)value == PieceType.Image) result = Visibility.Visible;
+            }
+            if((Type)parameter == typeof(Label))
+            {
+                if ((PieceType)value == PieceType.File) result = Visibility.Visible;
+            }
+            if((Type)parameter == typeof(PackIcon))
+            {
+                if ((PieceType)value == PieceType.File) result = Visibility.Visible;
+            }
+            if((Type)parameter == typeof(MediaElement))
+            {
+                if ((PieceType)value == PieceType.DynExp) result = Visibility.Visible;
+            }
+            return result;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
         }
     }
 }

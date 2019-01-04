@@ -12,7 +12,7 @@ namespace Amis
 {
     public class P2PModule
     {
-        private const int bufferSize = 4 * 1024 * 1024;
+        private const int bufferSize = 16 * 1024 * 1024;
 
         private Thread threadRecv = null;
         private InterThreads inter = null;
@@ -36,6 +36,8 @@ namespace Amis
 
         private P2PModule()
         {
+            recvBuffer = new byte[bufferSize];
+
             inter = InterThreads.GetInstance();
             intra = IntraThreads.GetInstance();
             theIP = GetIPV4();
@@ -44,12 +46,17 @@ namespace Amis
 
         public void SendData(byte[] data, string targetIP, int targetPort)
         {
-            peer = new TcpClient();
-            peer.Connect(targetIP, targetPort);
-            NetworkStream stream = peer.GetStream();
-            stream.Write(data, 0, data.Length);
-            stream.Close();
-            peer.Close();
+            using (peer = new TcpClient())
+            {
+                peer.SendBufferSize = bufferSize;
+                peer.Connect(targetIP, targetPort);
+                using (NetworkStream stream = peer.GetStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                    stream.Close();
+                }
+                peer.Close();
+            }
         }
 
         public void BeginListen()
@@ -84,17 +91,24 @@ namespace Amis
                 if (listener.Pending())
                 {
                     TcpClient client = listener.AcceptTcpClient();
+                    client.ReceiveBufferSize = bufferSize;
                     NetworkStream stream = client.GetStream();
-                    if (stream.DataAvailable)
+                    int small = 1024, len = 0;
+                    byte[] buff = new byte[small];
+                    if(stream.CanRead)
                     {
-                        recvBuffer = new byte[bufferSize];
-                        int len = stream.Read(recvBuffer, 0, bufferSize);
-                        byte[] msg = new byte[len];
-                        Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
-                        lock (inter)
+                        do
                         {
-                            inter.messages.Enqueue(msg);
-                        }
+                            int actual = stream.Read(buff, 0, small);
+                            Buffer.BlockCopy(buff, 0, recvBuffer, len, actual);
+                            len += actual;
+                        } while (stream.DataAvailable);
+                    }
+                    byte[] msg = new byte[len];
+                    Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
+                    lock (inter)
+                    {
+                        inter.messages.Enqueue(msg);
                     }
                     stream.Close();
                     client.Close();

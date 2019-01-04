@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Data;
 using System.Data.SQLite;
 using System.Collections.ObjectModel;
+using System.Windows;
 
 namespace Amis
 {
@@ -65,23 +66,33 @@ namespace Amis
         
     }
 
-    public enum PieceType { Text, Image, File }
+    public enum PieceType
+    {
+        Invalid = 0,
+        Text = 1,
+        Image = 2,
+        File = 3,
+        DynExp = 4
+    }
 
     public class Piece
     {
-        public PieceType type;
+        public PieceType MsgType { get; set; }
         public string Content { get; set; }
         public string SrcID { get; set; }
         public string DstID { get; set; }
         public string Timestamp { get; set; }
+        public HorizontalAlignment HorizAlgn { get; set; }
+        public string FilePath { get; set; }
 
-        public Piece(PieceType pt, string src, string dst, string con, string ts)
+        public Piece()
         {
-            type = pt;
-            SrcID = src;
-            DstID = dst;
-            Content = con;
-            Timestamp = ts;
+            MsgType = PieceType.Invalid;
+            Content = "";
+            SrcID = "";
+            Timestamp = "";
+            HorizAlgn = HorizontalAlignment.Stretch;
+            FilePath = "";
         }
     }
 
@@ -156,11 +167,11 @@ namespace Amis
             List<byte> msg = new List<byte>();
             bool isFile = false;
             bool isExp = proto.Type == MessageType.Exp;
-            if ((uint)proto.Type >= 2 && (uint)proto.Type <= 4)
+            if ((uint)proto.Type >= 2 && (uint)proto.Type <= 5)
             {
                 // Is File
                 lengthFile = proto.FilePart.Length;
-                lengthFileName = proto.Text.Length;
+                lengthFileName = Encoding.UTF8.GetByteCount(proto.Text);
                 isFile = true;
             }
             msg.AddRange(BitConverter.GetBytes(markBegStd));
@@ -175,11 +186,6 @@ namespace Amis
                 // Is File
                 msg.AddRange(Encoding.UTF8.GetBytes(proto.Text));
                 msg.AddRange(proto.FilePart);
-            }
-            else if(isExp)
-            {
-                // Is expression
-                msg.AddRange(BitConverter.GetBytes(proto.ExpId));
             }
             else
             {
@@ -223,6 +229,7 @@ namespace Amis
                 case 2:
                 case 3:
                 case 4:
+                case 5:
                     byte[] fnPart = new byte[lenFN], fPart = new byte[lenF];
                     Array.Copy(msg, 28, fnPart, 0, lenFN);
                     Array.Copy(msg, 28 + lenFN, fPart, 0, lenF);
@@ -231,9 +238,6 @@ namespace Amis
                     break;
                 case 1:
                     result.Text = Encoding.UTF8.GetString(msg, 28, lengthMsg - 32);
-                    break;
-                case 5:
-                    result.ExpId = BitConverter.ToInt32(msg, 28);
                     break;
             }
             return result;

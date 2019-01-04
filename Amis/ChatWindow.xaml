@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Amis"
         mc:Ignorable="d"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        TextElement.Foreground="{StaticResource MaterialDesignBody}"
         Background="{StaticResource WhiteWhite}"
         TextElement.FontWeight="Regular"
         TextElement.FontSize="14"
@@ -16,6 +16,9 @@
         Closing="AmisChat_Closing" WindowStyle="None" 
         Loaded="AmisChat_Loaded" ResizeMode="NoResize" 
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <local:PieceVisConverter x:Key="VisCVTR"/>
+    </Window.Resources>
     <materialDesign:DialogHost
         x:Name="dlgAdd"
         HorizontalAlignment="Center"
@@ -120,6 +123,28 @@
                             DockPanel.Dock="Right" Click="BtnCanAli_Click" />
                     </DockPanel>
                 </StackPanel>
+                <StackPanel x:Name="spNotif">
+                    <Label 
+                        x:Name="lblNotif"
+                        Content="朋友已离线"
+                        HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Margin="25,15,25,0"
+                        TextElement.FontSize="15"
+                        FontFamily="Noto Sans CJK SC Regular" 
+                        TextOptions.TextFormattingMode="Display"
+                        />
+                    <Button
+                            x:Name="btnOKNotif"
+                            Style="{StaticResource MaterialDesignFlatButton}"
+                            Content="确认"
+                            Margin="0,8,8,5"
+                            TextElement.FontSize="13"
+                            FontFamily="Noto Sans CJK SC Regular"
+                            HorizontalAlignment="Right"
+                            TextOptions.TextFormattingMode="Display"
+                            Command="materialDesign:DialogHost.CloseDialogCommand"/>
+                </StackPanel>
             </Grid>
         </materialDesign:DialogHost.DialogContent>
         <Grid x:Name="GridBackground">
@@ -159,7 +184,7 @@
                     <Label x:Name="lblChat" FontWeight="Normal" Foreground="{StaticResource WhiteWhite}"
                            DockPanel.Dock="Right" Margin="0,5,250,5" VerticalContentAlignment="Center"
                            VerticalAlignment="Center" TextElement.FontSize="16" FontFamily="Noto Sans CJK SC Regular"
-                        TextOptions.TextFormattingMode="Display"/>
+                        TextOptions.TextFormattingMode="Display" MouseDoubleClick="LblChat_MouseDoubleClick"/>
                 </DockPanel>
             </materialDesign:ColorZone>
             <Button 
@@ -178,64 +203,61 @@
             Height="50" 
             Width="50" 
             VerticalAlignment="Bottom" 
-            Margin="0,0,45,20"
+            Margin="0,0,35,25"
             Background="{StaticResource PrimaryHueDarkBrush}"
             BorderBrush="{StaticResource PrimaryHueDarkBrush}"
-            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right" Click="BtnSend_Click"
+            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right" Click="BtnSend_Click" RenderTransformOrigin="0.5,0.5"
             >
-                <materialDesign:PackIcon x:Name="icoSend" Kind="Send" Width="33" Height="33" />
+                <materialDesign:PackIcon x:Name="icoSend" Kind="Send" Width="32" Height="32" RenderTransformOrigin="0.5,0.5" >
+                    <materialDesign:PackIcon.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform/>
+                            <SkewTransform/>
+                            <RotateTransform Angle="-35"/>
+                            <TranslateTransform/>
+                        </TransformGroup>
+                    </materialDesign:PackIcon.RenderTransform>
+                </materialDesign:PackIcon>
             </Button>
             <Button 
-            x:Name="btnFile" 
-            Height="40" 
-            Width="40" 
+            x:Name="btnSendFile" 
+            Height="30" 
+            Width="30" 
             VerticalAlignment="Bottom" 
-            Margin="0,0,530,165"
+            Margin="0,0,530,150"
             Background="{StaticResource PrimaryHueMidBrush}"
             BorderBrush="{StaticResource PrimaryHueMidBrush}"
-            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right"
+            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right" Click="BtnSendFile_Click"
             >
-                <materialDesign:PackIcon x:Name="icoFile" Kind="FolderUpload" Width="27" Height="27" />
+                <materialDesign:PackIcon x:Name="icoFile" Kind="FolderUpload" Width="21" Height="21" />
             </Button>
             <Button 
             x:Name="btnImg" 
-            Height="40" 
-            Width="40" 
+            Height="30" 
+            Width="30" 
             VerticalAlignment="Bottom" 
-            Margin="0,0,475,165"
+            Margin="0,0,485,150"
             Background="{StaticResource PrimaryHueMidBrush}"
             BorderBrush="{StaticResource PrimaryHueMidBrush}"
-            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right"
+            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right" Click="BtnImg_Click"
             >
-                <materialDesign:PackIcon x:Name="icoImage" Kind="ImageOutline" Width="27" Height="27" />
+                <materialDesign:PackIcon x:Name="icoImage" Kind="ImageOutline" Width="21" Height="21" />
             </Button>
             <Button 
             x:Name="btnSticker" 
-            Height="40" 
-            Width="40" 
+            Height="30" 
+            Width="30" 
             VerticalAlignment="Bottom" 
-            Margin="0,0,365,165"
+            Margin="0,0,440,150"
             Background="{StaticResource PrimaryHueMidBrush}"
             BorderBrush="{StaticResource PrimaryHueMidBrush}"
-            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right"
+            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right" Click="BtnSticker_Click"
             >
-                <materialDesign:PackIcon x:Name="icoSticker" Kind="SmileyHappy" Width="27" Height="27" />
-            </Button>
-            <Button 
-            x:Name="btnVoice" 
-            Height="40" 
-            Width="40" 
-            VerticalAlignment="Bottom" 
-            Margin="0,0,420,165"
-            Background="{StaticResource PrimaryHueMidBrush}"
-            BorderBrush="{StaticResource PrimaryHueMidBrush}"
-            Style="{StaticResource MaterialDesignFloatingActionButton}" Panel.ZIndex="1" HorizontalAlignment="Right"
-            >
-                <materialDesign:PackIcon x:Name="icoVoice" Kind="SettingsVoice" Width="27" Height="27" />
+                <materialDesign:PackIcon x:Name="icoSticker" Kind="SmileyHappy" Width="21" Height="21" />
             </Button>
 
             <Expander x:Name="exChat" HorizontalAlignment="Left" Margin="0,69.92,0,0" MaxHeight="580"
-                      Width="263.4" Background="{StaticResource GrayDark}" Header="好友列表">
+                      Width="263.4" Background="{StaticResource GrayDark}" Header="通讯录" IsExpanded="True">
                 <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
                     <ListBox x:Name="lstAmisSingle" 
                          SelectionChanged="LstAmisSingle_SelectionChanged" 
@@ -260,30 +282,65 @@
                     </ListBox>
                 </ScrollViewer>
             </Expander>
-            <ListBox x:Name="lbMessage" Margin="263.4,69.92,0,189.28" ScrollViewer.CanContentScroll="False" >
+            <ListBox x:Name="lbMessage" Margin="263,70,-0.4,184.6" 
+                     ScrollViewer.CanContentScroll="False" 
+                     HorizontalContentAlignment="Stretch" >
                 <ListBox.ItemTemplate>
-                    <DataTemplate x:Name="lstMessagesItem">
-                        
+                    <DataTemplate x:Name="lstMessagesItem" DataType="{x:Type local:Piece}" >
+                        <materialDesign:Card 
+                                x:Name="cardMessage" UniformCornerRadius="5" 
+                                Background="{StaticResource PrimaryHueMidBrush}" 
+                                Foreground="{StaticResource PrimaryHueMidForegroundBrush}"
+                                HorizontalAlignment="{Binding HorizAlgn}" Margin="10,5,5,10"
+                                MaxWidth="320" MinWidth="50">
+                            <StackPanel x:Name="spMessage" Orientation="Horizontal">
+                                <TextBlock x:Name="tbTextMessage" Text="{Binding Content}" 
+                                       VerticalAlignment="Center" Padding="10"
+                                       Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type TextBlock}}"/>
+                                <materialDesign:PackIcon 
+                                    x:Name="pckIcoFile" Kind="FileCloud"
+                                    Width="30" Height="30"  VerticalAlignment="Center"
+                                    Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type materialDesign:PackIcon}}"
+                                    Margin="5,5,2,5"/>
+                                <TextBlock 
+                                    x:Name="lblFileName" Text="{Binding Content}" Foreground="{StaticResource PrimaryHueMidForegroundBrush}"
+                                    Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type Label}}"
+                                    Margin="2,5,10,5" TextWrapping="Wrap" MaxWidth="240"
+                                    VerticalAlignment="Center"/>
+                                <Image
+                                    x:Name="imgShow" Source="{Binding FilePath}" 
+                                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    MaxWidth="300" MaxHeight="300" Margin="5,5,5,5"
+                                    Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type Image}}" 
+                                    Stretch="Uniform"/>
+                                <MediaElement
+                                    x:Name="mediaExp" Source="{Binding FilePath}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    MaxWidth="300" MaxHeight="300" Margin="5,5,5,5"
+                                    Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type MediaElement}}" 
+                                    Stretch="Uniform" MediaEnded="MediaExp_MediaEnded"/>
+                            </StackPanel>
+                        </materialDesign:Card>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
             <materialDesign:ColorZone 
             x:Name="czSender" 
             VerticalAlignment="Bottom" 
-            Width="586.6" 
-            Margin="263.4,0,0,0" 
+            Width="587" 
+            Margin="263,0,-0.4,-0.4" 
             HorizontalAlignment="Left" 
             Height="185"
             Background="{StaticResource GrayLight}">
                 <TextBox x:Name="tbSender"
                         Style="{StaticResource MaterialDesignOutlinedTextFieldTextBox}"
-                        Margin="10,32.54,10,11.34"
+                        Margin="10,45,10.2,11.6"
                         AcceptsReturn="True"
                         TextWrapping="Wrap"
                         VerticalScrollBarVisibility="Auto"
                         materialDesign:HintAssist.Hint="说点什么吧……" 
                         HorizontalContentAlignment="Left"
-                        FontSize="15" KeyDown="TbSender_KeyDown"     />
+                        FontSize="15" KeyDown="TbSender_KeyDown" />
             </materialDesign:ColorZone>
         </Grid>
     </materialDesign:DialogHost>

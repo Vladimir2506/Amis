@@ -101,7 +101,7 @@
       <DependentUpon>ChatWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="CSModule.cs" />
-    <Compile Include="DataLayer.cs" />
+    <Compile Include="DataProto.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
