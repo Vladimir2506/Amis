@@ -15,7 +15,7 @@
         Height="650" Width="850" 
         Closing="AmisChat_Closing" WindowStyle="None" 
         Loaded="AmisChat_Loaded" ResizeMode="NoResize" 
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen" Closed="AmisChat_Closed">
     <Window.Resources>
         <local:PieceVisConverter x:Key="VisCVTR"/>
     </Window.Resources>
@@ -310,13 +310,14 @@
                                 <Image
                                     x:Name="imgShow" Source="{Binding FilePath}" 
                                     VerticalAlignment="Center" HorizontalAlignment="Center"
-                                    MaxWidth="300" MaxHeight="300" Margin="5,5,5,5"
+                                    MaxWidth="160" MaxHeight="120" Margin="5,5,5,5"
                                     Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type Image}}" 
-                                    Stretch="Uniform"/>
+                                    Stretch="Uniform" 
+                                    />
                                 <MediaElement
                                     x:Name="mediaExp" Source="{Binding FilePath}"
                                     VerticalAlignment="Center" HorizontalAlignment="Center"
-                                    MaxWidth="300" MaxHeight="300" Margin="5,5,5,5"
+                                    MaxWidth="160" MaxHeight="120" Margin="5,5,5,5"
                                     Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type MediaElement}}" 
                                     Stretch="Uniform" MediaEnded="MediaExp_MediaEnded"/>
                             </StackPanel>

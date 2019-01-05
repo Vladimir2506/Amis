@@ -18,6 +18,7 @@ using System.Net;
 using System.Globalization;
 using System.IO;
 using Microsoft.Win32;
+using System.Collections.ObjectModel;
 
 namespace Amis
 {
@@ -37,6 +38,7 @@ namespace Amis
         private int setIdx = -1;
         private string folderName = null;
         private string cacheFolderName = null;
+        private bool closing = false;
 
         public ChatWindow()
         {
@@ -59,6 +61,7 @@ namespace Amis
 
         private void AmisChat_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            closing = true;
             p2pCore.EndListen();
             lock (inter)
             {
@@ -66,8 +69,8 @@ namespace Amis
             }
             threadPump.Join();
             string res = csCore.QueryOnce("logout" + intra.monId);
+            intra.SaveAmis(folderName);
             // TODO:Saving ...
-
             Application.Current.MainWindow.Show();
         }
 
@@ -78,14 +81,14 @@ namespace Amis
 
         private void AmisChat_Loaded(object sender, RoutedEventArgs e)
         {
+            folderName = "./" + intra.monId + "/";
+            cacheFolderName = folderName + "Cache/";
 
             // TODO:Loading data...
             lblSelfID.Content = "我：" + intra.monId;
             lblSelfAli.Content = intra.monAlias;
-
-            folderName = "./" + intra.monId + "/";
             if (!Directory.Exists(folderName)) Directory.CreateDirectory(folderName);
-            cacheFolderName = folderName + "Cache/";
+            
             if (!Directory.Exists(cacheFolderName)) Directory.CreateDirectory(cacheFolderName);
 
             p2pCore.BeginListen();
@@ -198,6 +201,7 @@ namespace Amis
             try
             {
                 IPAddress.Parse(result);
+                intra.amisCollection[intra.currentChat].LastIP = result;
             }
             catch
             {
@@ -280,7 +284,7 @@ namespace Amis
                     LastIP = result
                 };
                 intra.amisCollection.Add(noveau);
-                intra.history.Add(idToFind, new System.Collections.ObjectModel.ObservableCollection<Piece>());
+                intra.history.Add(idToFind, new ObservableCollection<Piece>());
                 tbFindAmis.Text = "";
                 lblFindSingleRes.Content = "";
                 dlgAdd.IsOpen = false;
@@ -357,6 +361,7 @@ namespace Amis
 
         private void LstAmisSingle_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (closing) return;
             int selAmis = lstAmisSingle.SelectedIndex;
             intra.currentChat = selAmis;
             UpdateChatTitle(selAmis);
@@ -365,7 +370,7 @@ namespace Amis
         }
 
         private void UpdateChatTitle(int idx)
-        {
+        { 
             MonAmis amisChat = intra.amisCollection[idx];
             string chatTitle = amisChat.Alias == "未设置备注" ? amisChat.ID : amisChat.Alias;
             lblChat.Content = chatTitle;
@@ -405,6 +410,7 @@ namespace Amis
             try
             {
                 IPAddress.Parse(result);
+                intra.amisCollection[intra.currentChat].LastIP = result;
             }
             catch
             {
@@ -471,6 +477,7 @@ namespace Amis
             try
             {
                 IPAddress.Parse(result);
+                intra.amisCollection[intra.currentChat].LastIP = result;
             }
             catch
             {
@@ -538,6 +545,7 @@ namespace Amis
             try
             {
                 IPAddress.Parse(result);
+                intra.amisCollection[intra.currentChat].LastIP = result;
             }
             catch
             {
@@ -601,6 +609,13 @@ namespace Amis
         {
             var self = sender as MediaElement;
             self.Position = self.Position.Add(TimeSpan.FromMilliseconds(1));
+        }
+
+        private void AmisChat_Closed(object sender, EventArgs e)
+        {
+            lstAmisSingle.ItemsSource = null;
+            lbMessage.ItemsSource = null;
+            intra.Reset();
         }
     }
 

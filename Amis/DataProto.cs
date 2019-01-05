@@ -46,6 +46,7 @@ namespace Amis
         public ObservableCollection<MonAmis> amisCollection = null;
         public Dictionary<string, ObservableCollection<Piece>> history = null;
         public int currentChat = -1;
+        private const string nameDataBase = "LocalRecords.db3";
 
         private IntraThreads()
         {
@@ -63,7 +64,96 @@ namespace Amis
             }
             return instance;
         }
-        
+
+        public void SaveAmis(string path)
+        {
+            using (SQLiteConnection dbCore =
+                new SQLiteConnection("data source=" + path + nameDataBase))
+            {
+                dbCore.Open();
+                SQLiteCommand cmd = new SQLiteCommand(dbCore);
+                string tableName = "AMIS_" + monId;
+                cmd.CommandText =
+                    "CREATE TABLE IF NOT EXISTS "
+                    + tableName
+                    + "(ID NTEXT NOT NULL,"
+                    + "ALIAS NTEXT NOT NULL,"
+                    + "LAST NTEXT NOT NULL,"
+                    + "IP NTEXT NOT NULL);";
+                cmd.ExecuteNonQuery();
+                cmd.CommandText =
+                    "INSERT OR REPLACE INTO "
+                    + tableName
+                    + "(ID, ALIAS, LAST, IP) VALUES(@ID, @ALIAS, @LAST, @IP);";
+                cmd.Parameters.Add("ID", DbType.String).Value = monId;
+                cmd.Parameters.Add("ALIAS", DbType.String).Value = monAlias;
+                cmd.Parameters.Add("LAST", DbType.String).Value = "";
+                cmd.Parameters.Add("IP", DbType.String).Value = "";
+                cmd.ExecuteNonQuery();
+                foreach (MonAmis m in amisCollection)
+                {
+                    cmd.Parameters["ID"].Value = m.ID;
+                    cmd.Parameters["ALIAS"].Value = m.Alias;
+                    cmd.Parameters["LAST"].Value = m.LastActivated;
+                    cmd.Parameters["IP"].Value = m.LastIP;
+                    cmd.ExecuteNonQuery();
+                }
+                cmd.Parameters.Clear();
+                string histTbSch = 
+                    "CREATE TABLE IF NOT EXISTS "
+                    + "{0}"
+                    + "(MSGTYPE INT NOT NULL,"
+                    + "CONTENT NTEXT NOT NULL,"
+                    + "SRCID NTEXT NOT NULL,"
+                    + "DSTID NTEXT NOT NULL,"
+                    + "TIMESTAMP NTEXT NOT NULL,"
+                    + "HORIZALGN INT NOT NULL,"
+                    + "FILEPATH NTEXT NOT NULL);";
+                string histCmd =
+                    "INSERT OR REPLACE INTO "
+                    + "{0}"
+                    + "(MSGTYPE, CONTENT, SRCID, DSTID, TIMESTAMP, HORIZALGN, FILEPATH) "
+                    + "VALUES(@MSGTYPE, @CONTENT, @SRCID, @DSTID, @TIMESTAMP, @HORIZALGN, @FILEPATH);";
+                foreach (var p in history)
+                {
+                    string histTableName = "HIST_" + p.Key;
+                    ObservableCollection<Piece> pieces = p.Value;
+                    cmd.CommandText = string.Format(histTbSch, histTableName);
+                    cmd.ExecuteNonQuery();
+                    cmd.CommandText = string.Format(histCmd, histTableName);
+                    cmd.Parameters.Add("MSGTYPE", DbType.Int32);
+                    cmd.Parameters.Add("CONTENT", DbType.String);
+                    cmd.Parameters.Add("SRCID", DbType.String);
+                    cmd.Parameters.Add("DSTID", DbType.String);
+                    cmd.Parameters.Add("TIMESTAMP", DbType.String);
+                    cmd.Parameters.Add("HORIZALGN", DbType.Int32);
+                    cmd.Parameters.Add("FILEPATH", DbType.String);
+                    foreach (Piece h in pieces)
+                    {
+                        cmd.Parameters["MSGTYPE"].Value = (int)h.MsgType;
+                        cmd.Parameters["CONTENT"].Value = h.Content;
+                        cmd.Parameters["SRCID"].Value = h.SrcID;
+                        cmd.Parameters["DSTID"].Value = h.DstID;
+                        cmd.Parameters["TIMESTAMP"].Value = h.Timestamp;
+                        cmd.Parameters["HORIZALGN"].Value = (int)h.HorizAlgn;
+                        cmd.Parameters["FILEPATH"].Value = h.FilePath;
+                        cmd.ExecuteNonQuery();
+                    }
+                    cmd.Parameters.Clear();
+                }
+                dbCore.Close();
+            }
+        }
+
+        public void Reset()
+        {
+            monAlias = "未设置备注";
+            monId = "";
+            amisIds.Clear();
+            amisCollection.Clear();
+            foreach(var p in history) p.Value.Clear();
+            history.Clear();
+        }
     }
 
     public enum PieceType
