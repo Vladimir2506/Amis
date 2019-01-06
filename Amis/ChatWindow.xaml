@@ -18,6 +18,7 @@
         WindowStartupLocation="CenterScreen" Closed="AmisChat_Closed">
     <Window.Resources>
         <local:PieceVisConverter x:Key="VisCVTR"/>
+        <local:OnlineConverter x:Key="OlCVTR"/>
     </Window.Resources>
     <materialDesign:DialogHost
         x:Name="dlgAdd"
@@ -165,7 +166,7 @@
                         <ListBox x:Name="lbMenu" >
                             <ListBoxItem x:Name="lbiSelf" PreviewMouseLeftButtonDown="LbiSelf_PreviewMouseLeftButtonDown" >
                                 <StackPanel x:Name="spNameCard" Orientation="Horizontal">
-                                    <materialDesign:PackIcon x:Name="icoAccount" Kind="AccountCircle" Margin="5" Width="Auto" Height="Auto" VerticalAlignment="Stretch"/>
+                                    <materialDesign:PackIcon x:Name="icoAccount" Kind="AccountCircle" Margin="5" Width="Auto" Height="Auto" VerticalAlignment="Stretch" />
                                     <StackPanel x:Name="spSelfInfo">
                                         <Label x:Name="lblSelfID" HorizontalAlignment="Center" Margin="5,5,10,0" />
                                         <Label x:Name="lblSelfAli" HorizontalAlignment="Center" Margin="5,0,10,5" />
@@ -191,7 +192,7 @@
             x:Name="btnAddAmis" 
             HorizontalAlignment="Left" 
             Height="45" 
-            Margin="160,45,0,0" 
+            Margin="150,45,0,0" 
             VerticalAlignment="Top" 
             Width="45" 
             Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}" Panel.ZIndex="2" Click="BtnAddAmis_Click"
@@ -266,7 +267,10 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:Name="AmisListItem" DataType="{x:Type local:MonAmis}" >
                                 <StackPanel x:Name="spAmisLR" Orientation="Horizontal" Margin="40,2,1,1">
-                                    <materialDesign:PackIcon x:Name="icoPortrait" Kind="AccountCircle" Width="38" Height="38" Margin="2,0,0,0" VerticalAlignment="Center"/>
+                                    <materialDesign:PackIcon x:Name="icoPortrait" Kind="AccountCircle" 
+                                                             Width="38" Height="38" Margin="2,0,0,0" VerticalAlignment="Center"
+                                        Foreground="{Binding Online, Converter={StaticResource OlCVTR}}" />
+                                        
                                     <StackPanel x:Name="spAmisTB">
                                         <DockPanel x:Name="dpAmisIDLA" >
                                             <Label x:Name="lblAmisID" DockPanel.Dock="Left" Margin="5,0,0,0" Content="{Binding ID}"/>
@@ -292,8 +296,8 @@
                                 Background="{StaticResource PrimaryHueMidBrush}" 
                                 Foreground="{StaticResource PrimaryHueMidForegroundBrush}"
                                 HorizontalAlignment="{Binding HorizAlgn}" Margin="10,5,5,10"
-                                MaxWidth="320" MinWidth="50">
-                            <StackPanel x:Name="spMessage" Orientation="Horizontal">
+                                MaxWidth="320" MinWidth="50" PreviewMouseDoubleClick="CardMessage_PreviewMouseDoubleClick">
+                            <StackPanel x:Name="spMessage" Orientation="Horizontal" >
                                 <TextBlock x:Name="tbTextMessage" Text="{Binding Content}" 
                                        VerticalAlignment="Center" Padding="10"
                                        Visibility="{Binding MsgType, Converter={StaticResource VisCVTR}, ConverterParameter={x:Type TextBlock}}"/>
@@ -343,6 +347,18 @@
                         HorizontalContentAlignment="Left"
                         FontSize="15" KeyDown="TbSender_KeyDown" />
             </materialDesign:ColorZone>
+            <Button 
+                x:Name="btnOLCheck" 
+                HorizontalAlignment="Left" 
+                Height="45" 
+                Margin="195,0,0,20" 
+                VerticalAlignment="Bottom" 
+                Width="45" 
+                Style="{StaticResource MaterialDesignFloatingActionMiniButton}" 
+                Panel.ZIndex="2" Click="BtnOLCheck_Click"
+            >
+                <materialDesign:PackIcon x:Name="icoRefresh" Kind="Refresh" Width="27" Height="27" />
+            </Button>
         </Grid>
     </materialDesign:DialogHost>
 </Window>

@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Windows;
 
 namespace Amis
@@ -38,7 +34,11 @@ namespace Amis
         public string QueryOnce(string msg)
         {
             string recv = "NRP";
-            socketToServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socketToServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+            {
+                SendTimeout = 2000,
+                ReceiveTimeout = 2000
+            };
             try
             {
                 socketToServer.Connect(serverEndPoint);
@@ -46,6 +46,7 @@ namespace Amis
             catch (Exception e)
             {
                 MessageBox.Show(e.Message, "发起连接错误");
+                return recv;
             }
             try
             {

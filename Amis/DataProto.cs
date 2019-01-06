@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.SQLite;
-using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace Amis
@@ -65,9 +63,83 @@ namespace Amis
             return instance;
         }
 
+        public void LoadAmis(string path)
+        {
+            if (!File.Exists(path + nameDataBase)) return;
+            using (SQLiteConnection dbCore =
+                new SQLiteConnection("data source=" + path + nameDataBase))
+            {
+                dbCore.Open();
+                SQLiteCommand cmd = new SQLiteCommand(dbCore);
+                string tableName = "AMIS_" + monId;
+                cmd.CommandText = "SELECT * FROM " + tableName + ";";
+                SQLiteDataReader dataReader = null;
+                try
+                {
+                    dataReader = cmd.ExecuteReader();
+                }
+                catch
+                {
+                    return;
+                }
+                while(dataReader.Read())
+                {
+                    MonAmis m = new MonAmis("")
+                    {
+                        ID = dataReader.GetString(0),
+                        Alias = dataReader.GetString(1),
+                        LastActivated = dataReader.GetString(2),
+                        LastIP = dataReader.GetString(3)
+                    };
+                    if (amisIds.Contains(m.ID)) continue;
+
+                    if (m.ID != monId)
+                    {
+                        amisCollection.Add(m);
+                        amisIds.Add(m.ID);
+                    }
+                    else monAlias = m.Alias;
+                }
+                dataReader.Close();
+                string nameHist = "HIST_";
+                foreach (string id in amisIds)
+                {
+                    ObservableCollection<Piece> pieces = new ObservableCollection<Piece>();
+                    cmd.CommandText = "SELECT * FROM " + nameHist + id + ";";
+                    try
+                    {
+                        dataReader = cmd.ExecuteReader();
+                    }
+                    catch
+                    {
+                        history.Add(id, pieces);
+                        continue;
+                    }
+                    while(dataReader.Read())
+                    {
+                        Piece p = new Piece()
+                        {
+                            MsgType = (PieceType)dataReader.GetInt32(0),
+                            Content = dataReader.GetString(1),
+                            SrcID = dataReader.GetString(2),
+                            DstID = dataReader.GetString(3),
+                            Timestamp = dataReader.GetString(4),
+                            HorizAlgn = (HorizontalAlignment)dataReader.GetInt32(5),
+                            FilePath = dataReader.GetString(6)
+                        };
+                        pieces.Add(p);
+                    }
+                    dataReader.Close();
+                    history.Add(id, pieces);
+                }
+                dbCore.Close();
+            }
+        }
+
         public void SaveAmis(string path)
         {
-            using (SQLiteConnection dbCore =
+            if (File.Exists(path + nameDataBase)) File.Delete(path + nameDataBase);
+                using (SQLiteConnection dbCore =
                 new SQLiteConnection("data source=" + path + nameDataBase))
             {
                 dbCore.Open();

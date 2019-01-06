@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
 
 namespace Amis
@@ -13,5 +9,23 @@ namespace Amis
     /// </summary>
     public partial class App : Application
     {
+        private Mutex mutex;
+
+        public App()
+        {
+            Startup += App_Startup;
+        }
+
+        void App_Startup(object sender, StartupEventArgs e)
+        {
+            mutex = new Mutex(true, "TheAmis", out bool ret);
+
+            if (!ret)
+            {
+                MessageBox.Show("已有一个程序实例运行");
+                Environment.Exit(0);
+            }
+
+        }
     }
 }

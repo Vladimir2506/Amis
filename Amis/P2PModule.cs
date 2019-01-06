@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace Amis
@@ -41,18 +37,43 @@ namespace Amis
             inter = InterThreads.GetInstance();
             intra = IntraThreads.GetInstance();
             theIP = GetIPV4();
-            listener = new TcpListener(theIP, IntraThreads.portNO);
+            try
+            {
+                listener = new TcpListener(theIP, IntraThreads.portNO);
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.Message, "对等方监听启动失败");
+            }
         }
 
         public void SendData(byte[] data, string targetIP, int targetPort)
         {
             using (peer = new TcpClient())
             {
+                peer.SendTimeout = 2000;
+                peer.ReceiveTimeout = 2000;
                 peer.SendBufferSize = bufferSize;
-                peer.Connect(targetIP, targetPort);
+                try
+                {
+                    peer.Connect(targetIP, targetPort);
+                }
+                catch(Exception e)
+                {
+                    MessageBox.Show(e.Message, "对等方连接失败");
+                    throw new Exception("NOL");
+                }
                 using (NetworkStream stream = peer.GetStream())
                 {
-                    stream.Write(data, 0, data.Length);
+                    try
+                    {
+                         stream.Write(data, 0, data.Length);
+                    }
+                    catch(Exception e)
+                    {
+                        MessageBox.Show(e.Message, "流写入错误");
+                        return;
+                    }
                     stream.Close();
                 }
                 peer.Close();
@@ -69,7 +90,14 @@ namespace Amis
             {
                 inter.listening = true;
             }
-            listener.Start();
+            try
+            {
+                listener.Start();
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.Message, "监听启动失败");
+            }
             threadRecv.Start();
         }
 
@@ -80,7 +108,14 @@ namespace Amis
                 inter.listening = false;
             }
             threadRecv.Join();
-            listener.Stop();
+            try
+            {
+                listener.Stop();
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message, "监听终止失败");
+            }
         }
 
         private void AcceptRecv()
@@ -90,27 +125,46 @@ namespace Amis
             {
                 if (listener.Pending())
                 {
-                    TcpClient client = listener.AcceptTcpClient();
+                    TcpClient client = null;
+                    try
+                    {
+                        client = listener.AcceptTcpClient();
+                    }
+                    catch(Exception e)
+                    {
+                        MessageBox.Show(e.Message, "对等方接受连接失败");
+                    }
                     client.ReceiveBufferSize = bufferSize;
-                    NetworkStream stream = client.GetStream();
-                    int small = 1024, len = 0;
-                    byte[] buff = new byte[small];
-                    if(stream.CanRead)
+                    using (NetworkStream stream = client.GetStream())
                     {
-                        do
+                        int small = 1024 * 1024, len = 0;
+                        byte[] buff = new byte[small];
+                        if (stream.CanRead)
                         {
-                            int actual = stream.Read(buff, 0, small);
-                            Buffer.BlockCopy(buff, 0, recvBuffer, len, actual);
-                            len += actual;
-                        } while (stream.DataAvailable);
-                    }
-                    byte[] msg = new byte[len];
-                    Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
-                    lock (inter)
-                    {
-                        inter.messages.Enqueue(msg);
-                    }
-                    stream.Close();
+                            do
+                            {
+                                int actual = 0;
+                                try
+                                {
+                                    actual = stream.Read(buff, 0, small);
+                                }
+                                catch(Exception e)
+                                {
+                                    MessageBox.Show(e.Message, "流读出错误");
+                                }
+                                Buffer.BlockCopy(buff, 0, recvBuffer, len, actual);
+                                len += actual;
+                                Thread.Sleep(50);
+                            } while (stream.DataAvailable);
+                        }
+                        stream.Close();
+                        byte[] msg = new byte[len];
+                        Buffer.BlockCopy(recvBuffer, 0, msg, 0, len);
+                        lock (inter)
+                        {
+                            inter.messages.Enqueue(msg);
+                        }
+                    }        
                     client.Close();
                 }
                 lock (inter)

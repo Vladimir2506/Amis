@@ -1,24 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MaterialDesignThemes.Wpf;
+using Microsoft.Win32;
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Net;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using System.Threading;
-using MaterialDesignThemes.Wpf;
-using MaterialDesignColors;
-using System.Net;
-using System.Globalization;
-using System.IO;
-using Microsoft.Win32;
-using System.Collections.ObjectModel;
 
 namespace Amis
 {
@@ -59,7 +53,7 @@ namespace Amis
             };
         }
 
-        private void AmisChat_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void AmisChat_Closing(object sender, CancelEventArgs e)
         {
             closing = true;
             p2pCore.EndListen();
@@ -83,18 +77,37 @@ namespace Amis
         {
             folderName = "./" + intra.monId + "/";
             cacheFolderName = folderName + "Cache/";
-
-            // TODO:Loading data...
+            if (!Directory.Exists(folderName)) Directory.CreateDirectory(folderName);
+            if (!Directory.Exists(cacheFolderName)) Directory.CreateDirectory(cacheFolderName);
+            intra.LoadAmis(folderName);
+            CheckOnline();
             lblSelfID.Content = "我：" + intra.monId;
             lblSelfAli.Content = intra.monAlias;
-            if (!Directory.Exists(folderName)) Directory.CreateDirectory(folderName);
             
-            if (!Directory.Exists(cacheFolderName)) Directory.CreateDirectory(cacheFolderName);
-
             p2pCore.BeginListen();
             threadPump.Start();
 
             lstAmisSingle.ItemsSource = intra.amisCollection;
+        }
+
+        private void CheckOnline()
+        {
+            for (int l = 0; l < intra.amisCollection.Count; ++l)
+            {
+                var a = intra.amisCollection[l];
+                string result = csCore.QueryOnce("q" + a.ID);
+                try
+                {
+                    IPAddress.Parse(result);
+                    a.LastIP = result;
+                    a.Online = true;
+                }
+                catch
+                {
+                    a.Online = false;
+                }
+            }
+            lstAmisSingle.Items.Refresh();
         }
 
         private void CzTop_MouseMove(object sender, MouseEventArgs e)
@@ -120,7 +133,9 @@ namespace Amis
                 }
                 if (msg != null && msg.Length > 0)
                 {
-                    Dispatcher.BeginInvoke(new LogicProc(RecvDispatch), msg);
+                    MyProto fetches = MyProto.UnpackMessage(msg);
+                    if(fetches.Type != MessageType.Invalid)
+                        Dispatcher.BeginInvoke(new MainLogic(RecvDispatch), fetches);
                 }
                 lock (inter)
                 {
@@ -129,13 +144,33 @@ namespace Amis
             }
         }
 
-        private delegate void LogicProc(byte[] msg);
+        private delegate void MainLogic(MyProto fetches);
 
-        private async void RecvDispatch(byte[] msg)
+        private async void RecvDispatch(MyProto fetches)
         {
-            MyProto fetches = MyProto.UnpackMessage(msg);
             if (fetches.ToId != intra.monId) return;
             string timeUpd = null;
+            if(!intra.amisIds.Contains(fetches.FromId))
+            {
+                intra.amisIds.Add(fetches.FromId);
+                intra.amisCollection.Add(
+                    new MonAmis("")
+                    {
+                        ID = fetches.FromId,
+                        Alias = "未设置备注",
+                        LastActivated = DateTime.Now.ToShortTimeString(),
+                        LastIP = csCore.QueryOnce("q" + fetches.FromId),
+                        Online = true
+                    });
+                intra.history.Add(fetches.FromId,
+                    new ObservableCollection<Piece>());
+                lstAmisSingle.Items.Refresh();
+                lstAmisSingle.SelectedIndex = lstAmisSingle.Items.Count - 1;
+            }
+            else
+            {
+                lstAmisSingle.SelectedIndex = intra.amisIds.FindIndex(x => x == fetches.FromId);
+            }
             switch (fetches.Type)
             {
                 case MessageType.Text:
@@ -150,18 +185,22 @@ namespace Amis
                     };
                     intra.history[fetches.FromId].Add(textPiece);
                     timeUpd = textPiece.Timestamp;
+                    lbMessage.ScrollIntoView(textPiece);
                     break;
                 case MessageType.File:
                 case MessageType.Pic:
                 case MessageType.Exp:
                     string filename = cacheFolderName + fetches.Text;
-                    FileStream fs = File.OpenWrite(filename);
+                    string ext = Path.GetExtension(filename);
+                    string fn = Path.GetFileNameWithoutExtension(filename);
+                    filename = cacheFolderName +  fn + "_" + DateTime.Now.ToLongTimeString() + ext;
+                    filename = filename.Replace(':', '_');
                     Piece filePiece = new Piece()
                     {
                         DstID = fetches.ToId,
                         SrcID = fetches.FromId,
                         Content = fetches.Text,
-                        FilePath = System.IO.Path.GetFullPath(filename),
+                        FilePath = Path.GetFullPath(filename),
                         HorizAlgn = HorizontalAlignment.Left,
                         Timestamp = DateTime.Now.ToShortTimeString()
                     };
@@ -177,15 +216,17 @@ namespace Amis
                     {
                         filePiece.MsgType = PieceType.DynExp;
                     }
+                    FileStream fs = File.OpenWrite(filePiece.FilePath);
                     await fs.WriteAsync(fetches.FilePart, 0, fetches.FilePart.Length);
                     fs.Close();
                     intra.history[fetches.FromId].Add(filePiece);
                     timeUpd = filePiece.Timestamp;
+                    lbMessage.ScrollIntoView(filePiece);
                     break;
             }
             intra.amisCollection[intra.currentChat].LastActivated = timeUpd;
             lstAmisSingle.Items.Refresh();
-
+    
         }
 
         private void BtnSend_Click(object sender, RoutedEventArgs e)
@@ -196,22 +237,7 @@ namespace Amis
         private void SendMessage()
         {
             if (intra.currentChat == -1) return;
-            string olCheck = intra.amisIds[intra.currentChat];
-            string result = csCore.QueryOnce("q" + olCheck);
-            try
-            {
-                IPAddress.Parse(result);
-                intra.amisCollection[intra.currentChat].LastIP = result;
-            }
-            catch
-            {
-                lblNotif.Content = "朋友当前离线";
-                dlgAdd.IsOpen = true;
-                spNotif.Visibility = Visibility.Visible;
-                spSetAlias.Visibility = Visibility.Collapsed;
-                spNewSingle.Visibility = Visibility.Collapsed;
-                return;
-            }
+            
             if (tbSender.Text != "")
             {
                 MyProto fetches = new MyProto
@@ -231,7 +257,22 @@ namespace Amis
                     HorizAlgn = HorizontalAlignment.Right
                 };
                 intra.history[fetches.ToId].Add(pack);
-                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                try
+                {
+                    p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message == "NOL")
+                    {
+                        lblNotif.Content = "朋友当前离线";
+                        dlgAdd.IsOpen = true;
+                        intra.amisCollection[intra.currentChat].Online = false;
+                        spNotif.Visibility = Visibility.Visible;
+                        spSetAlias.Visibility = Visibility.Collapsed;
+                        spNewSingle.Visibility = Visibility.Collapsed;
+                    }
+                }
             }
 
             tbSender.Text = "";
@@ -253,16 +294,18 @@ namespace Amis
         void FindAmis()
         {
             string idToFind = tbFindAmis.Text;
-            if (intra.amisIds.Contains(idToFind))
-            {
-                lblFindSingleRes.Content = "您已经添加了";
-                return;
-            }
-            /*if (idToFind == intra.monId)
+            if (idToFind == intra.monId)
             {
                 lblFindSingleRes.Content = "请不要添加自己";
                 return;
-            }*/
+            }
+            if (intra.amisIds.Contains(idToFind))
+            {
+                tbFindAmis.Text = "";
+                dlgAdd.IsOpen = false;
+                lstAmisSingle.SelectedIndex = intra.amisIds.FindIndex(x => x == idToFind);
+                return;
+            }
             string result = csCore.QueryOnce("q" + idToFind);
             bool validIP = true;
             try
@@ -405,22 +448,7 @@ namespace Amis
         private async void BtnSendFile_Click(object sender, RoutedEventArgs e)
         {
             if (intra.currentChat == -1) return;
-            string olCheck = intra.amisIds[intra.currentChat];
-            string result = csCore.QueryOnce("q" + olCheck);
-            try
-            {
-                IPAddress.Parse(result);
-                intra.amisCollection[intra.currentChat].LastIP = result;
-            }
-            catch
-            {
-                lblNotif.Content = "朋友当前离线";
-                dlgAdd.IsOpen = true;
-                spNotif.Visibility = Visibility.Visible;
-                spSetAlias.Visibility = Visibility.Collapsed;
-                spNewSingle.Visibility = Visibility.Collapsed;
-                return;
-            }
+            
             OpenFileDialog dlgFileTransmit = new OpenFileDialog
             {
                 Title = "选择要发送的文件",
@@ -441,11 +469,11 @@ namespace Amis
                     spNewSingle.Visibility = Visibility.Collapsed;
                     return;
                 }
-                string shortFileName = System.IO.Path.GetFileName(filename);
+                string shortFileName = Path.GetFileName(filename);
                 Piece piece = new Piece()
                 {
                     MsgType = PieceType.File,
-                    FilePath = System.IO.Path.GetFullPath(filename),
+                    FilePath = Path.GetFullPath(filename),
                     SrcID = intra.monId,
                     DstID = intra.amisIds[intra.currentChat],
                     Timestamp = DateTime.Now.ToShortTimeString(),
@@ -464,30 +492,29 @@ namespace Amis
                     FilePart = new byte[fileLength]
                 };
                 Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
-                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
-
+                try
+                {
+                    p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                }
+                catch(Exception ex)
+                {
+                    if(ex.Message == "NOL")
+                    {
+                        lblNotif.Content = "朋友当前离线";
+                        dlgAdd.IsOpen = true;
+                        intra.amisCollection[intra.currentChat].Online = false;
+                        spNotif.Visibility = Visibility.Visible;
+                        spSetAlias.Visibility = Visibility.Collapsed;
+                        spNewSingle.Visibility = Visibility.Collapsed;
+                    }
+                }
             }
         }
 
         private async void BtnImg_Click(object sender, RoutedEventArgs e)
         {
             if (intra.currentChat == -1) return;
-            string olCheck = intra.amisIds[intra.currentChat];
-            string result = csCore.QueryOnce("q" + olCheck);
-            try
-            {
-                IPAddress.Parse(result);
-                intra.amisCollection[intra.currentChat].LastIP = result;
-            }
-            catch
-            {
-                lblNotif.Content = "朋友当前离线";
-                dlgAdd.IsOpen = true;
-                spNotif.Visibility = Visibility.Visible;
-                spSetAlias.Visibility = Visibility.Collapsed;
-                spNewSingle.Visibility = Visibility.Collapsed;
-                return;
-            }
+            
             OpenFileDialog dlgFileTransmit = new OpenFileDialog
             {
                 Title = "选择要发送的图片",
@@ -510,11 +537,11 @@ namespace Amis
                     spNewSingle.Visibility = Visibility.Collapsed;
                     return;
                 }
-                string shortFileName = System.IO.Path.GetFileName(filename);
+                string shortFileName = Path.GetFileName(filename);
                 Piece piece = new Piece()
                 {
                     MsgType = PieceType.Image,
-                    FilePath = System.IO.Path.GetFullPath(filename),
+                    FilePath = Path.GetFullPath(filename),
                     SrcID = intra.monId,
                     DstID = intra.amisIds[intra.currentChat],
                     Timestamp = DateTime.Now.ToShortTimeString(),
@@ -533,29 +560,30 @@ namespace Amis
                     FilePart = new byte[fileLength]
                 };
                 Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
-                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                try
+                {
+                    p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message == "NOL")
+                    {
+                        lblNotif.Content = "朋友当前离线";
+                        dlgAdd.IsOpen = true;
+                        intra.amisCollection[intra.currentChat].Online = false;
+                        spNotif.Visibility = Visibility.Visible;
+                        spSetAlias.Visibility = Visibility.Collapsed;
+                        spNewSingle.Visibility = Visibility.Collapsed;
+                    }
+                }
             }
         }
+        
 
         private async void BtnSticker_Click(object sender, RoutedEventArgs e)
         {
             if (intra.currentChat == -1) return;
-            string olCheck = intra.amisIds[intra.currentChat];
-            string result = csCore.QueryOnce("q" + olCheck);
-            try
-            {
-                IPAddress.Parse(result);
-                intra.amisCollection[intra.currentChat].LastIP = result;
-            }
-            catch
-            {
-                lblNotif.Content = "朋友当前离线";
-                dlgAdd.IsOpen = true;
-                spNotif.Visibility = Visibility.Visible;
-                spSetAlias.Visibility = Visibility.Collapsed;
-                spNewSingle.Visibility = Visibility.Collapsed;
-                return;
-            }
+            
             OpenFileDialog dlgFileTransmit = new OpenFileDialog
             {
                 Title = "请选择要发送的动态表情",
@@ -578,11 +606,11 @@ namespace Amis
                     spNewSingle.Visibility = Visibility.Collapsed;
                     return;
                 }
-                string shortFileName = System.IO.Path.GetFileName(filename);
+                string shortFileName = Path.GetFileName(filename);
                 Piece piece = new Piece()
                 {
                     MsgType = PieceType.DynExp,
-                    FilePath = System.IO.Path.GetFullPath(filename),
+                    FilePath = Path.GetFullPath(filename),
                     SrcID = intra.monId,
                     DstID = intra.amisIds[intra.currentChat],
                     Timestamp = DateTime.Now.ToShortTimeString(),
@@ -601,7 +629,22 @@ namespace Amis
                     FilePart = new byte[fileLength]
                 };
                 Buffer.BlockCopy(fileBuffer, 0, fetches.FilePart, 0, fileLength);
-                p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                try
+                {
+                    p2pCore.SendData(MyProto.PackMessage(fetches), intra.amisCollection[intra.currentChat].LastIP, 15120);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message == "NOL")
+                    {
+                        lblNotif.Content = "朋友当前离线";
+                        dlgAdd.IsOpen = true;
+                        intra.amisCollection[intra.currentChat].Online = false;
+                        spNotif.Visibility = Visibility.Visible;
+                        spSetAlias.Visibility = Visibility.Collapsed;
+                        spNewSingle.Visibility = Visibility.Collapsed;
+                    }
+                }
             }
         }
 
@@ -616,6 +659,22 @@ namespace Amis
             lstAmisSingle.ItemsSource = null;
             lbMessage.ItemsSource = null;
             intra.Reset();
+        }
+
+        private void BtnOLCheck_Click(object sender, RoutedEventArgs e)
+        {
+            CheckOnline();
+            exChat.IsExpanded = true;
+        }
+
+        private void CardMessage_PreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            int idx = lbMessage.SelectedIndex;
+            Piece p = lbMessage.SelectedItem as Piece;
+            if(p.MsgType == PieceType.File)
+            {
+                Process.Start(p.FilePath);
+            }
         }
     }
 
@@ -645,6 +704,21 @@ namespace Amis
                 if ((PieceType)value == PieceType.DynExp) result = Visibility.Visible;
             }
             return result;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
+
+    public class OnlineConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            
+            if ((bool)value) return new SolidColorBrush(Color.FromArgb(0xdd, 0x42, 0xa5, 0xf5));
+            else return new SolidColorBrush(Color.FromArgb(0xdd, 0x00, 0x00, 0x00));
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
